@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"context"
 	"database/sql"
 	"io"
 	"log/slog"
@@ -58,8 +59,8 @@ func TestNew(t *testing.T) {
 		invalidMigration := &mockMigration{
 			id:          "invalid_format",
 			description: "Invalid ID",
-			upFunc:      func(tx *sql.Tx) error { return nil },
-			downFunc:    func(tx *sql.Tx) error { return nil },
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 		}
 
 		err := m.AddMigration(invalidMigration)

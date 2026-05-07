@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -22,7 +23,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := migrator.Up(); err != nil {
+	if err := migrator.Up(context.Background()); err != nil {
 		log.Fatal(err)
 	}
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/dracory/database"
@@ -17,7 +18,7 @@ func (m *CreatePostsTable) Description() string {
 	return "Create posts table with title, content, and user reference"
 }
 
-func (m *CreatePostsTable) Up(tx *sql.Tx) error {
+func (m *CreatePostsTable) Up(ctx context.Context, tx *sql.Tx) error {
 	dialect := database.DatabaseType(tx)
 	sql, err := sb.NewBuilder(dialect).
 		Table("posts").
@@ -60,7 +61,7 @@ func (m *CreatePostsTable) Up(tx *sql.Tx) error {
 	return err
 }
 
-func (m *CreatePostsTable) Down(tx *sql.Tx) error {
+func (m *CreatePostsTable) Down(ctx context.Context, tx *sql.Tx) error {
 	dialect := database.DatabaseType(tx)
 	sql, err := sb.NewBuilder(dialect).
 		Table("posts").

@@ -1,6 +1,9 @@
 package migrate
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+)
 
 // MigrationInterface defines the contract that all migrations must implement
 type MigrationInterface interface {
@@ -13,10 +16,11 @@ type MigrationInterface interface {
 	Description() string
 
 	// Up executes the migration to apply database changes
-	// Takes transaction for atomic operations
-	Up(tx *sql.Tx) error
+	// Takes context for cancellation support and transaction for atomic operations
+	Up(ctx context.Context, tx *sql.Tx) error
 
 	// Down executes the rollback to revert database changes
+	// Takes context for cancellation support and transaction for atomic operations
 	// Should undo exactly what Up() did
-	Down(tx *sql.Tx) error
+	Down(ctx context.Context, tx *sql.Tx) error
 }

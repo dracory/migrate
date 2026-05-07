@@ -1,11 +1,14 @@
 package migrate
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+)
 
 // migration represents a single database migration (internal use only)
 type migration struct {
 	ID          string
 	Description string
-	Up          func(*sql.Tx) error
-	Down        func(*sql.Tx) error
+	Up          func(context.Context, *sql.Tx) error
+	Down        func(context.Context, *sql.Tx) error
 }

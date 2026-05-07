@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"io"
@@ -60,7 +61,7 @@ func TestGetAppliedMigrations(t *testing.T) {
 	m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}).(*migratorImplementation)
 
 	t.Run("returns empty map when table doesn't exist", func(t *testing.T) {
-		applied, err := m.getAppliedmigrations()
+		applied, err := m.getAppliedmigrations(context.Background())
 		if err == nil {
 			t.Error("Expected error when table doesn't exist")
 		}
@@ -74,7 +75,7 @@ func TestGetAppliedMigrations(t *testing.T) {
 			t.Fatalf("Failed to create test table: %v", err)
 		}
 
-		applied, err := m.getAppliedmigrations()
+		applied, err := m.getAppliedmigrations(context.Background())
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -105,7 +106,7 @@ func TestGetAppliedMigrations(t *testing.T) {
 			t.Fatalf("Failed to insert test migration: %v", err)
 		}
 
-		applied, err := m.getAppliedmigrations()
+		applied, err := m.getAppliedmigrations(context.Background())
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -135,19 +136,18 @@ func TestRunMigration(t *testing.T) {
 		migration := &migration{
 			ID:          "2026_03_21_001_test",
 			Description: "Test migration",
-			Up: func(tx *sql.Tx) error {
+			Up: func(ctx context.Context, tx *sql.Tx) error {
 				executed = true
 				_, err := tx.Exec("CREATE TABLE test_table (id INTEGER PRIMARY KEY)")
 				return err
 			},
-			Down: func(tx *sql.Tx) error {
+			Down: func(ctx context.Context, tx *sql.Tx) error {
 				_, err := tx.Exec("DROP TABLE test_table")
 				return err
 			},
 		}
 
-		err := m.runmigration(migration, DirectionUp)
-		if err != nil {
+		if err := m.runmigration(context.Background(), migration, DirectionUp); err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
 
@@ -156,8 +156,7 @@ func TestRunMigration(t *testing.T) {
 		}
 
 		var count int
-		err = db.QueryRow("SELECT COUNT(*) FROM "+m.tableName+" WHERE id = ?", migration.ID).Scan(&count)
-		if err != nil {
+		if err := db.QueryRow("SELECT COUNT(*) FROM "+m.tableName+" WHERE id = ?", migration.ID).Scan(&count); err != nil {
 			t.Fatalf("Failed to query migrations table: %v", err)
 		}
 		if count != 1 {
@@ -170,18 +169,17 @@ func TestRunMigration(t *testing.T) {
 		migration := &migration{
 			ID:          "2026_03_21_001_test",
 			Description: "Test migration",
-			Up: func(tx *sql.Tx) error {
+			Up: func(ctx context.Context, tx *sql.Tx) error {
 				return nil
 			},
-			Down: func(tx *sql.Tx) error {
+			Down: func(ctx context.Context, tx *sql.Tx) error {
 				executed = true
 				_, err := tx.Exec("DROP TABLE test_table")
 				return err
 			},
 		}
 
-		err := m.runmigration(migration, DirectionDown)
-		if err != nil {
+		if err := m.runmigration(context.Background(), migration, DirectionDown); err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
 
@@ -190,8 +188,7 @@ func TestRunMigration(t *testing.T) {
 		}
 
 		var count int
-		err = db.QueryRow("SELECT COUNT(*) FROM "+m.tableName+" WHERE id = ?", migration.ID).Scan(&count)
-		if err != nil {
+		if err := db.QueryRow("SELECT COUNT(*) FROM "+m.tableName+" WHERE id = ?", migration.ID).Scan(&count); err != nil {
 			t.Fatalf("Failed to query migrations table: %v", err)
 		}
 		if count != 0 {
@@ -203,20 +200,18 @@ func TestRunMigration(t *testing.T) {
 		migration := &migration{
 			ID:          "2026_03_21_002_test",
 			Description: "Failing migration",
-			Up: func(tx *sql.Tx) error {
+			Up: func(ctx context.Context, tx *sql.Tx) error {
 				return errors.New("migration failed")
 			},
-			Down: func(tx *sql.Tx) error { return nil },
+			Down: func(ctx context.Context, tx *sql.Tx) error { return nil },
 		}
 
-		err := m.runmigration(migration, DirectionUp)
-		if err == nil {
+		if err := m.runmigration(context.Background(), migration, DirectionUp); err == nil {
 			t.Error("Expected error from failing migration")
 		}
 
 		var count int
-		err = db.QueryRow("SELECT COUNT(*) FROM "+m.tableName+" WHERE id = ?", migration.ID).Scan(&count)
-		if err != nil {
+		if err := db.QueryRow("SELECT COUNT(*) FROM "+m.tableName+" WHERE id = ?", migration.ID).Scan(&count); err != nil {
 			t.Fatalf("Failed to query migrations table: %v", err)
 		}
 		if count != 0 {
@@ -242,21 +237,22 @@ func TestRunMigration(t *testing.T) {
 		migration := &migration{
 			ID:          "2026_03_21_003_test",
 			Description: "Test migration",
-			Up: func(tx *sql.Tx) error {
+			Up: func(ctx context.Context, tx *sql.Tx) error {
 				_, err := tx.Exec("CREATE TABLE another_test (id INTEGER)")
 				return err
 			},
-			Down: func(tx *sql.Tx) error { return nil },
+			Down: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec("DROP TABLE another_test")
+				return err
+			},
 		}
 
-		err = m2.runmigration(migration, DirectionUp)
-		if err == nil {
+		if err := m2.runmigration(context.Background(), migration, DirectionUp); err == nil {
 			t.Error("Expected error when tracking table doesn't exist")
 		}
 
 		var count int
-		err = db2.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='another_test'").Scan(&count)
-		if err != nil {
+		if err := db2.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='another_test'").Scan(&count); err != nil {
 			t.Fatalf("Failed to query sqlite_master: %v", err)
 		}
 		if count != 0 {

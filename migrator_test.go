@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sync"
@@ -12,14 +13,14 @@ import (
 type mockMigration struct {
 	id          string
 	description string
-	upFunc      func(*sql.Tx) error
-	downFunc    func(*sql.Tx) error
+	upFunc      func(ctx context.Context, tx *sql.Tx) error
+	downFunc    func(ctx context.Context, tx *sql.Tx) error
 }
 
-func (m *mockMigration) ID() string            { return m.id }
-func (m *mockMigration) Description() string   { return m.description }
-func (m *mockMigration) Up(tx *sql.Tx) error   { return m.upFunc(tx) }
-func (m *mockMigration) Down(tx *sql.Tx) error { return m.downFunc(tx) }
+func (m *mockMigration) ID() string                                 { return m.id }
+func (m *mockMigration) Description() string                        { return m.description }
+func (m *mockMigration) Up(ctx context.Context, tx *sql.Tx) error   { return m.upFunc(ctx, tx) }
+func (m *mockMigration) Down(ctx context.Context, tx *sql.Tx) error { return m.downFunc(ctx, tx) }
 
 func TestAddMigration(t *testing.T) {
 	db := setupTestDB(t)
@@ -30,8 +31,8 @@ func TestAddMigration(t *testing.T) {
 		migration := &mockMigration{
 			id:          "2026_03_21_001_test",
 			description: "Test migration",
-			upFunc:      func(tx *sql.Tx) error { return nil },
-			downFunc:    func(tx *sql.Tx) error { return nil },
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 		}
 
 		err := m.AddMigration(migration)
@@ -56,8 +57,8 @@ func TestAddMigration(t *testing.T) {
 		migration := &mockMigration{
 			id:          "",
 			description: "Test",
-			upFunc:      func(tx *sql.Tx) error { return nil },
-			downFunc:    func(tx *sql.Tx) error { return nil },
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 		}
 
 		err := m.AddMigration(migration)
@@ -74,14 +75,14 @@ func TestAddMigration(t *testing.T) {
 		migration1 := &mockMigration{
 			id:          "2026_03_21_001_test",
 			description: "Test migration 1",
-			upFunc:      func(tx *sql.Tx) error { return nil },
-			downFunc:    func(tx *sql.Tx) error { return nil },
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 		}
 		migration2 := &mockMigration{
 			id:          "2026_03_21_001_test",
 			description: "Test migration 2",
-			upFunc:      func(tx *sql.Tx) error { return nil },
-			downFunc:    func(tx *sql.Tx) error { return nil },
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 		}
 
 		err := m.AddMigration(migration1)
@@ -109,14 +110,14 @@ func TestAddMigrations(t *testing.T) {
 			&mockMigration{
 				id:          "2026_03_21_001_test",
 				description: "Test 1",
-				upFunc:      func(tx *sql.Tx) error { return nil },
-				downFunc:    func(tx *sql.Tx) error { return nil },
+				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
 				id:          "2026_03_21_002_test",
 				description: "Test 2",
-				upFunc:      func(tx *sql.Tx) error { return nil },
-				downFunc:    func(tx *sql.Tx) error { return nil },
+				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 		}
 
@@ -132,15 +133,15 @@ func TestAddMigrations(t *testing.T) {
 			&mockMigration{
 				id:          "2026_03_21_001_test",
 				description: "Test 1",
-				upFunc:      func(tx *sql.Tx) error { return nil },
-				downFunc:    func(tx *sql.Tx) error { return nil },
+				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			nil,
 			&mockMigration{
 				id:          "2026_03_21_003_test",
 				description: "Test 3",
-				upFunc:      func(tx *sql.Tx) error { return nil },
-				downFunc:    func(tx *sql.Tx) error { return nil },
+				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 		}
 
@@ -174,8 +175,8 @@ func TestConcurrentMigrationAddition(t *testing.T) {
 				migration := &mockMigration{
 					id:          migrationID,
 					description: fmt.Sprintf("Test migration %d", goroutineID*migrationsPerGoroutine+j),
-					upFunc:      func(tx *sql.Tx) error { return nil },
-					downFunc:    func(tx *sql.Tx) error { return nil },
+					upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+					downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 				}
 
 				if err := m.AddMigration(migration); err != nil {
@@ -208,8 +209,8 @@ func TestAddMigrationInternal(t *testing.T) {
 		migration := &mockMigration{
 			id:          "2026_03_21_001_test",
 			description: "Test migration",
-			upFunc:      func(tx *sql.Tx) error { return nil },
-			downFunc:    func(tx *sql.Tx) error { return nil },
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 		}
 
 		err := m.addMigrationInternal(migration)
@@ -239,8 +240,8 @@ func TestAddMigrationInternal(t *testing.T) {
 		migration := &mockMigration{
 			id:          "",
 			description: "Test",
-			upFunc:      func(tx *sql.Tx) error { return nil },
-			downFunc:    func(tx *sql.Tx) error { return nil },
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 		}
 
 		err := m.addMigrationInternal(migration)
@@ -257,15 +258,15 @@ func TestAddMigrationInternal(t *testing.T) {
 		migration1 := &mockMigration{
 			id:          "2026_03_21_001_test",
 			description: "Test 1",
-			upFunc:      func(tx *sql.Tx) error { return nil },
-			downFunc:    func(tx *sql.Tx) error { return nil },
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 		}
 
 		migration2 := &mockMigration{
 			id:          "2026_03_21_001_test",
 			description: "Test 2",
-			upFunc:      func(tx *sql.Tx) error { return nil },
-			downFunc:    func(tx *sql.Tx) error { return nil },
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 		}
 
 		err1 := m.addMigrationInternal(migration1)

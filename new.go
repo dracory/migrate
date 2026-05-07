@@ -57,9 +57,7 @@ func New(db *sql.DB, opts *Options) MigratorInterface {
 	}
 
 	logger := opts.Logger
-	if logger == nil {
-		logger = slog.Default()
-	}
+	// If nil, logging is disabled (keep logger as nil)
 
 	return &migratorImplementation{
 		db:         db,

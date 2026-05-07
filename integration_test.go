@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"context"
 	"database/sql"
 	"io"
 	"log/slog"
@@ -19,7 +20,7 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 		&mockMigration{
 			id:          "2026_03_21_001_create_users",
 			description: "Create users table",
-			upFunc: func(tx *sql.Tx) error {
+			upFunc: func(ctx context.Context, tx *sql.Tx) error {
 				_, err := tx.Exec(`CREATE TABLE users (
 					id INTEGER PRIMARY KEY,
 					email TEXT NOT NULL UNIQUE,
@@ -27,7 +28,7 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 				)`)
 				return err
 			},
-			downFunc: func(tx *sql.Tx) error {
+			downFunc: func(ctx context.Context, tx *sql.Tx) error {
 				_, err := tx.Exec("DROP TABLE users")
 				return err
 			},
@@ -35,7 +36,7 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 		&mockMigration{
 			id:          "2026_03_21_002_create_posts",
 			description: "Create posts table",
-			upFunc: func(tx *sql.Tx) error {
+			upFunc: func(ctx context.Context, tx *sql.Tx) error {
 				_, err := tx.Exec(`CREATE TABLE posts (
 					id INTEGER PRIMARY KEY,
 					title TEXT NOT NULL,
@@ -43,7 +44,7 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 				)`)
 				return err
 			},
-			downFunc: func(tx *sql.Tx) error {
+			downFunc: func(ctx context.Context, tx *sql.Tx) error {
 				_, err := tx.Exec("DROP TABLE posts")
 				return err
 			},
@@ -55,7 +56,7 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 	}
 
 	t.Run("runs all migrations in order", func(t *testing.T) {
-		err := m.Up()
+		err := m.Up(context.Background())
 		if err != nil {
 			t.Fatalf("Failed to run migrations: %v", err)
 		}
@@ -82,7 +83,7 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 	})
 
 	t.Run("running Up again does nothing", func(t *testing.T) {
-		err := m.Up()
+		err := m.Up(context.Background())
 		if err != nil {
 			t.Fatalf("Failed to run migrations again: %v", err)
 		}
@@ -98,7 +99,7 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 	})
 
 	t.Run("rolls back last migration", func(t *testing.T) {
-		err := m.Down()
+		err := m.Down(context.Background())
 		if err != nil {
 			t.Fatalf("Failed to rollback: %v", err)
 		}
@@ -124,17 +125,17 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 		}
 
 		// Run all migrations
-		if err := m2.Up(); err != nil {
+		if err := m2.Up(context.Background()); err != nil {
 			t.Fatalf("Failed to run migrations: %v", err)
 		}
 
 		// Roll back last one
-		if err := m2.Down(); err != nil {
+		if err := m2.Down(context.Background()); err != nil {
 			t.Fatalf("Failed to rollback: %v", err)
 		}
 
 		// Re-run
-		err := m2.Up()
+		err := m2.Up(context.Background())
 		if err != nil {
 			t.Fatalf("Failed to re-run migration: %v", err)
 		}
@@ -162,29 +163,29 @@ func TestIntegrationMigrationOrdering(t *testing.T) {
 		&mockMigration{
 			id:          "2026_03_22_003_third",
 			description: "Third",
-			upFunc: func(tx *sql.Tx) error {
+			upFunc: func(ctx context.Context, tx *sql.Tx) error {
 				executionOrder = append(executionOrder, "third")
 				return nil
 			},
-			downFunc: func(tx *sql.Tx) error { return nil },
+			downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 		},
 		&mockMigration{
 			id:          "2026_03_21_001_first",
 			description: "First",
-			upFunc: func(tx *sql.Tx) error {
+			upFunc: func(ctx context.Context, tx *sql.Tx) error {
 				executionOrder = append(executionOrder, "first")
 				return nil
 			},
-			downFunc: func(tx *sql.Tx) error { return nil },
+			downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 		},
 		&mockMigration{
 			id:          "2026_03_21_002_second",
 			description: "Second",
-			upFunc: func(tx *sql.Tx) error {
+			upFunc: func(ctx context.Context, tx *sql.Tx) error {
 				executionOrder = append(executionOrder, "second")
 				return nil
 			},
-			downFunc: func(tx *sql.Tx) error { return nil },
+			downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 		},
 	}
 
@@ -192,7 +193,7 @@ func TestIntegrationMigrationOrdering(t *testing.T) {
 		t.Fatalf("Failed to add migrations: %v", err)
 	}
 
-	err := m.Up()
+	err := m.Up(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
@@ -234,15 +235,15 @@ func TestIntegrationWithCustomMigrationTableName(t *testing.T) {
 	migration := &mockMigration{
 		id:          "2026_03_21_001_test",
 		description: "Test",
-		upFunc:      func(tx *sql.Tx) error { return nil },
-		downFunc:    func(tx *sql.Tx) error { return nil },
+		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 	}
 
 	if err := m.AddMigration(migration); err != nil {
 		t.Fatalf("Failed to add migration: %v", err)
 	}
 
-	if err := m.Up(); err != nil {
+	if err := m.Up(context.Background()); err != nil {
 		t.Fatalf("Failed to run migration: %v", err)
 	}
 
@@ -266,31 +267,31 @@ func TestIntegrationTransactionRollback(t *testing.T) {
 	migration1 := &mockMigration{
 		id:          "2026_03_21_001_create_table",
 		description: "Create test table",
-		upFunc: func(tx *sql.Tx) error {
+		upFunc: func(ctx context.Context, tx *sql.Tx) error {
 			_, err := tx.Exec("CREATE TABLE test_rollback (id INTEGER PRIMARY KEY)")
 			return err
 		},
-		downFunc: func(tx *sql.Tx) error { return nil },
+		downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 	}
 
 	migration2 := &mockMigration{
 		id:          "2026_03_21_002_fail",
 		description: "Failing migration",
-		upFunc: func(tx *sql.Tx) error {
+		upFunc: func(ctx context.Context, tx *sql.Tx) error {
 			_, err := tx.Exec("INSERT INTO test_rollback (id) VALUES (1)")
 			if err != nil {
 				return err
 			}
 			return sql.ErrConnDone
 		},
-		downFunc: func(tx *sql.Tx) error { return nil },
+		downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 	}
 
 	if err := m.AddMigrations([]MigrationInterface{migration1, migration2}); err != nil {
 		t.Fatalf("Failed to add migrations: %v", err)
 	}
 
-	err := m.Up()
+	err := m.Up(context.Background())
 	if err == nil {
 		t.Error("Expected error from failing migration")
 	}

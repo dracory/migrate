@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"io"
@@ -30,29 +31,29 @@ func TestUp(t *testing.T) {
 			&mockMigration{
 				id:          "2026_03_21_003_third",
 				description: "Third migration",
-				upFunc: func(tx *sql.Tx) error {
+				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "third")
 					return nil
 				},
-				downFunc: func(tx *sql.Tx) error { return nil },
+				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
 				id:          "2026_03_21_001_first",
 				description: "First migration",
-				upFunc: func(tx *sql.Tx) error {
+				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "first")
 					return nil
 				},
-				downFunc: func(tx *sql.Tx) error { return nil },
+				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
 				id:          "2026_03_21_002_second",
 				description: "Second migration",
-				upFunc: func(tx *sql.Tx) error {
+				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "second")
 					return nil
 				},
-				downFunc: func(tx *sql.Tx) error { return nil },
+				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 		}
 
@@ -60,7 +61,7 @@ func TestUp(t *testing.T) {
 			t.Fatalf("Failed to add migrations: %v", err)
 		}
 
-		if err := m.Up(); err != nil {
+		if err := m.Up(context.Background()); err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
 
@@ -109,20 +110,20 @@ func TestUp(t *testing.T) {
 			&mockMigration{
 				id:          "2026_03_21_001_first",
 				description: "First migration",
-				upFunc: func(tx *sql.Tx) error {
+				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "first")
 					return nil
 				},
-				downFunc: func(tx *sql.Tx) error { return nil },
+				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
 				id:          "2026_03_21_002_second",
 				description: "Second migration",
-				upFunc: func(tx *sql.Tx) error {
+				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "second")
 					return nil
 				},
-				downFunc: func(tx *sql.Tx) error { return nil },
+				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 		}
 
@@ -130,7 +131,7 @@ func TestUp(t *testing.T) {
 			t.Fatalf("Failed to add migrations: %v", err)
 		}
 
-		if err := m.Up(); err != nil {
+		if err := m.Up(context.Background()); err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
 
@@ -159,29 +160,29 @@ func TestUp(t *testing.T) {
 			&mockMigration{
 				id:          "2026_03_21_001_first",
 				description: "First migration",
-				upFunc: func(tx *sql.Tx) error {
+				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "first")
 					return nil
 				},
-				downFunc: func(tx *sql.Tx) error { return nil },
+				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
 				id:          "2026_03_21_002_second",
 				description: "Second migration (fails)",
-				upFunc: func(tx *sql.Tx) error {
+				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "second")
 					return errors.New("migration failed")
 				},
-				downFunc: func(tx *sql.Tx) error { return nil },
+				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
 				id:          "2026_03_21_003_third",
 				description: "Third migration",
-				upFunc: func(tx *sql.Tx) error {
+				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "third")
 					return nil
 				},
-				downFunc: func(tx *sql.Tx) error { return nil },
+				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 		}
 
@@ -189,7 +190,7 @@ func TestUp(t *testing.T) {
 			t.Fatalf("Failed to add migrations: %v", err)
 		}
 
-		err := m.Up()
+		err := m.Up(context.Background())
 		if err == nil {
 			t.Error("Expected error from failing migration")
 		}
@@ -226,7 +227,7 @@ func TestUp(t *testing.T) {
 
 		m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 
-		err := m.Up()
+		err := m.Up(context.Background())
 		if err != nil {
 			t.Errorf("Expected no error for empty migration list, got %v", err)
 		}
@@ -248,14 +249,14 @@ func TestDown(t *testing.T) {
 			&mockMigration{
 				id:          "2026_03_21_001_first",
 				description: "First migration",
-				upFunc:      func(tx *sql.Tx) error { return nil },
-				downFunc:    func(tx *sql.Tx) error { return nil },
+				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
 				id:          "2026_03_21_002_second",
 				description: "Second migration",
-				upFunc:      func(tx *sql.Tx) error { return nil },
-				downFunc:    func(tx *sql.Tx) error { return nil },
+				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 		}
 
@@ -263,11 +264,11 @@ func TestDown(t *testing.T) {
 			t.Fatalf("Failed to add migrations: %v", err)
 		}
 
-		if err := m.Up(); err != nil {
+		if err := m.Up(context.Background()); err != nil {
 			t.Fatalf("Failed to run migrations: %v", err)
 		}
 
-		if err := m.Down(); err != nil {
+		if err := m.Down(context.Background()); err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
 
@@ -299,7 +300,7 @@ func TestDown(t *testing.T) {
 
 		m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 
-		err := m.Down()
+		err := m.Down(context.Background())
 		if err != nil {
 			t.Errorf("Expected no error when no migrations to rollback, got %v", err)
 		}
@@ -318,8 +319,8 @@ func TestDown(t *testing.T) {
 		migration := &mockMigration{
 			id:          "2026_03_21_001_test",
 			description: "Test migration",
-			upFunc:      func(tx *sql.Tx) error { return nil },
-			downFunc: func(tx *sql.Tx) error {
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc: func(ctx context.Context, tx *sql.Tx) error {
 				return errors.New("rollback failed")
 			},
 		}
@@ -328,11 +329,11 @@ func TestDown(t *testing.T) {
 			t.Fatalf("Failed to add migration: %v", err)
 		}
 
-		if err := m.Up(); err != nil {
+		if err := m.Up(context.Background()); err != nil {
 			t.Fatalf("Failed to run migration: %v", err)
 		}
 
-		err := m.Down()
+		err := m.Down(context.Background())
 		if err == nil {
 			t.Error("Expected error from failing rollback")
 		}
@@ -354,14 +355,14 @@ func TestStatus(t *testing.T) {
 			&mockMigration{
 				id:          "2026_03_21_001_first",
 				description: "First migration",
-				upFunc:      func(tx *sql.Tx) error { return nil },
-				downFunc:    func(tx *sql.Tx) error { return nil },
+				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
 				id:          "2026_03_21_002_second",
 				description: "Second migration",
-				upFunc:      func(tx *sql.Tx) error { return nil },
-				downFunc:    func(tx *sql.Tx) error { return nil },
+				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 		}
 
@@ -389,8 +390,7 @@ func TestStatus(t *testing.T) {
 			t.Fatalf("Failed to insert test migration: %v", err)
 		}
 
-		err = m.Status()
-		if err != nil {
+		if err := m.Status(context.Background()); err != nil {
 			t.Errorf("Expected no error, got %v", err)
 		}
 	})

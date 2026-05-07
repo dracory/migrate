@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/dracory/database"
@@ -17,7 +18,7 @@ func (m *CreateUsersTable) Description() string {
 	return "Create users table with email and timestamps"
 }
 
-func (m *CreateUsersTable) Up(tx *sql.Tx) error {
+func (m *CreateUsersTable) Up(ctx context.Context, tx *sql.Tx) error {
 	dialect := database.DatabaseType(tx)
 	sql, err := sb.NewBuilder(dialect).
 		Table("users").
@@ -50,7 +51,7 @@ func (m *CreateUsersTable) Up(tx *sql.Tx) error {
 	return err
 }
 
-func (m *CreateUsersTable) Down(tx *sql.Tx) error {
+func (m *CreateUsersTable) Down(ctx context.Context, tx *sql.Tx) error {
 	dialect := database.DatabaseType(tx)
 	sql, err := sb.NewBuilder(dialect).
 		Table("users").

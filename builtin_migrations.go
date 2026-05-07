@@ -1,18 +1,23 @@
 package migrate
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/dracory/database"
 	"github.com/dracory/sb"
 )
 
+// createSchemaMigrationsTable is a builtin migration that creates the table
+// used to track applied migrations
 type createSchemaMigrationsTable struct {
 	tableName string
 }
 
-func NewCreateSchemaMigrationsTable(tableName string) *createSchemaMigrationsTable {
-	return &createSchemaMigrationsTable{tableName: tableName}
+func NewCreateSchemaMigrationsTable(tableName string) MigrationInterface {
+	return &createSchemaMigrationsTable{
+		tableName: tableName,
+	}
 }
 
 func (m *createSchemaMigrationsTable) ID() string {
@@ -20,10 +25,10 @@ func (m *createSchemaMigrationsTable) ID() string {
 }
 
 func (m *createSchemaMigrationsTable) Description() string {
-	return "Create schema_migrations table for tracking applied migrations"
+	return "Create schema migrations tracking table"
 }
 
-func (m *createSchemaMigrationsTable) Up(tx *sql.Tx) error {
+func (m *createSchemaMigrationsTable) Up(ctx context.Context, tx *sql.Tx) error {
 	dialect := database.DatabaseType(tx)
 	sql, err := sb.NewBuilder(dialect).
 		Table(m.tableName).
@@ -63,7 +68,7 @@ func (m *createSchemaMigrationsTable) Up(tx *sql.Tx) error {
 	return err
 }
 
-func (m *createSchemaMigrationsTable) Down(tx *sql.Tx) error {
+func (m *createSchemaMigrationsTable) Down(ctx context.Context, tx *sql.Tx) error {
 	dialect := database.DatabaseType(tx)
 	sql, err := sb.NewBuilder(dialect).
 		Table(m.tableName).

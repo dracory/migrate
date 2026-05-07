@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"context"
 	"testing"
 
 	_ "modernc.org/sqlite"
@@ -33,7 +34,7 @@ func TestCreateSchemaMigrationsTable(t *testing.T) {
 		}
 		defer tx.Rollback()
 
-		err = migration.Up(tx)
+		err = migration.Up(context.Background(), tx)
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -59,7 +60,7 @@ func TestCreateSchemaMigrationsTable(t *testing.T) {
 		}
 		defer tx.Rollback()
 
-		err = migration.Down(tx)
+		err = migration.Down(context.Background(), tx)
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}

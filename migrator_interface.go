@@ -1,5 +1,7 @@
 package migrate
 
+import "context"
+
 // MigratorInterface defines the contract for database migration operations
 type MigratorInterface interface {
 	// AddMigration adds a new migration to the list
@@ -9,11 +11,11 @@ type MigratorInterface interface {
 	AddMigrations(migrations []MigrationInterface) error
 
 	// Up runs all pending migrations
-	Up() error
+	Up(ctx context.Context) error
 
 	// Down rolls back the last migration
-	Down() error
+	Down(ctx context.Context) error
 
 	// Status shows migration status
-	Status() error
+	Status(ctx context.Context) error
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -34,14 +35,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := migrator.Up(); err != nil {
+	if err := migrator.Up(context.Background()); err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println("Custom migration completed successfully")
 
 	// Demonstrate rollback
-	if err := migrator.Down(); err != nil {
+	if err := migrator.Down(context.Background()); err != nil {
 		log.Fatal(err)
 	}
 

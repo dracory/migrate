@@ -76,7 +76,7 @@ func (m *migratorImplementation) AddMigrations(migrations []MigrationInterface) 
 }
 
 // getAppliedmigrations returns a map of applied migration IDs
-func (m *migratorImplementation) getAppliedmigrations() (map[string]bool, error) {
+func (m *migratorImplementation) getAppliedmigrations(ctx context.Context) (map[string]bool, error) {
 	dialect := database.DatabaseType(m.db)
 	sql, params, err := sb.NewBuilder(dialect).
 		Table(m.tableName).
@@ -87,7 +87,7 @@ func (m *migratorImplementation) getAppliedmigrations() (map[string]bool, error)
 		return nil, err
 	}
 
-	appliedStrings, err := database.SelectToMapString(database.NewQueryableContext(context.Background(), m.db), sql, params...)
+	appliedStrings, err := database.SelectToMapString(database.NewQueryableContext(ctx, m.db), sql, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -104,9 +104,9 @@ func (m *migratorImplementation) getAppliedmigrations() (map[string]bool, error)
 }
 
 // runmigration executes a migration up or down
-func (m *migratorImplementation) runmigration(migration *migration, direction string) error {
-	// Start transaction
-	tx, err := m.db.Begin()
+func (m *migratorImplementation) runmigration(ctx context.Context, migration *migration, direction string) error {
+	// Start transaction with context for cancellation
+	tx, err := m.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -121,9 +121,9 @@ func (m *migratorImplementation) runmigration(migration *migration, direction st
 	// Run the migration
 	var migrationErr error
 	if direction == DirectionUp {
-		migrationErr = migration.Up(tx)
+		migrationErr = migration.Up(ctx, tx)
 	} else {
-		migrationErr = migration.Down(tx)
+		migrationErr = migration.Down(ctx, tx)
 	}
 
 	if migrationErr != nil {
@@ -211,7 +211,7 @@ func (m *migratorImplementation) hasBuiltinMigrations() bool {
 }
 
 // Up runs all pending migrations
-func (m *migratorImplementation) Up() error {
+func (m *migratorImplementation) Up(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -226,7 +226,7 @@ func (m *migratorImplementation) Up() error {
 	}
 
 	// Get applied migrations (may be empty if schema_migrations doesn't exist yet)
-	applied, err := m.getAppliedmigrations()
+	applied, err := m.getAppliedmigrations(ctx)
 	if err != nil {
 		// If table doesn't exist, assume no migrations applied
 		// The builtin migration will create it
@@ -245,7 +245,7 @@ func (m *migratorImplementation) Up() error {
 				m.logger.Info("Running migration", "id", migration.ID, "description", migration.Description)
 			}
 
-			if err := m.runmigration(migration, DirectionUp); err != nil {
+			if err := m.runmigration(ctx, migration, DirectionUp); err != nil {
 				return fmt.Errorf("migration %s failed: %w", migration.ID, err)
 			}
 
@@ -259,7 +259,7 @@ func (m *migratorImplementation) Up() error {
 }
 
 // Down rolls back the last migration
-func (m *migratorImplementation) Down() error {
+func (m *migratorImplementation) Down(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -274,7 +274,7 @@ func (m *migratorImplementation) Down() error {
 	}
 
 	// Get applied migrations
-	applied, err := m.getAppliedmigrations()
+	applied, err := m.getAppliedmigrations(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get applied migrations: %w", err)
 	}
@@ -298,7 +298,7 @@ func (m *migratorImplementation) Down() error {
 		m.logger.Info("Rolling back migration", "id", lastmigration.ID, "description", lastmigration.Description)
 	}
 
-	if err := m.runmigration(lastmigration, DirectionDown); err != nil {
+	if err := m.runmigration(ctx, lastmigration, DirectionDown); err != nil {
 		return fmt.Errorf("rollback %s failed: %w", lastmigration.ID, err)
 	}
 
@@ -309,11 +309,11 @@ func (m *migratorImplementation) Down() error {
 }
 
 // Status shows migration status
-func (m *migratorImplementation) Status() error {
+func (m *migratorImplementation) Status(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	applied, err := m.getAppliedmigrations()
+	applied, err := m.getAppliedmigrations(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get applied migrations: %w", err)
 	}

@@ -93,12 +93,13 @@ func (m *CreateUsersTable) Down(tx *sql.Tx) error {
 package main
 
 import (
+    "context"
     "database/sql"
     "log"
-    
+
     "github.com/dracory/migrate"
     "github.com/yourusername/yourproject/internal/migrations"
-    _ "modernc.org/sqlite"
+    _ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
@@ -109,10 +110,7 @@ func main() {
     defer db.Close()
 
     // Create migrator with options
-    migrator := migrate.New(db, &migrate.Options{
-        MigrationTableName: "schema_migrations", // Optional: default is "schema_migrations"
-        Logger:    nil,                       // Optional: use slog.Default() if nil
-    })
+    migrator := migrate.New(db, nil)
     
     // Add your migrations (builtin migrations are added automatically)
     if err := migrator.AddMigration(&migrations.CreateUsersTable{}); err != nil {
@@ -120,7 +118,12 @@ func main() {
     }
     
     // Run all pending migrations
-    if err := migrator.Up(); err != nil {
+    if err := migrator.Up(context.Background()); err != nil {
+        log.Fatal(err)
+    }
+    
+    // Roll back the last migration
+    if err := migrator.Down(context.Background()); err != nil {
         log.Fatal(err)
     }
     
