@@ -72,4 +72,100 @@ func TestNew(t *testing.T) {
 			t.Errorf("Expected error containing '%s', got: %v", expectedError, err)
 		}
 	})
+
+	t.Run("panics on invalid table name with special characters", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for invalid table name with special characters")
+			}
+		}()
+
+		New(db, &Options{MigrationTableName: "invalid-table-name"})
+	})
+
+	t.Run("panics on table name too long", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for table name too long")
+			}
+		}()
+
+		longName := strings.Repeat("a", 65)
+		New(db, &Options{MigrationTableName: longName})
+	})
+
+	t.Run("panics on table name with spaces", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Error("Expected panic for table name with spaces")
+			}
+		}()
+
+		New(db, &Options{MigrationTableName: "table name"})
+	})
+}
+
+func TestValidateTableName(t *testing.T) {
+	t.Run("accepts valid table names", func(t *testing.T) {
+		validNames := []string{
+			"schema_migrations",
+			"migrations",
+			"custom_table",
+			"a",
+			"Table123",
+			"_underscore",
+			"_123",
+		}
+
+		for _, name := range validNames {
+			if err := validateTableName(name); err != nil {
+				t.Errorf("Expected valid name '%s' to be accepted, got: %v", name, err)
+			}
+		}
+	})
+
+	t.Run("rejects empty table name", func(t *testing.T) {
+		if err := validateTableName(""); err == nil {
+			t.Error("Expected error for empty table name")
+		}
+	})
+
+	t.Run("rejects table name too long", func(t *testing.T) {
+		longName := strings.Repeat("a", 65)
+		if err := validateTableName(longName); err == nil {
+			t.Error("Expected error for table name too long")
+		}
+	})
+
+	t.Run("rejects table name starting with digit", func(t *testing.T) {
+		invalidNames := []string{
+			"123_table",
+			"9table",
+			"0_migrations",
+		}
+
+		for _, name := range invalidNames {
+			if err := validateTableName(name); err == nil {
+				t.Errorf("Expected invalid name '%s' (starting with digit) to be rejected", name)
+			}
+		}
+	})
+
+	t.Run("rejects table name with special characters", func(t *testing.T) {
+		invalidNames := []string{
+			"table-name",
+			"table.name",
+			"table name",
+			"table;name",
+			"table'name",
+			"table\"name",
+			"table*name",
+		}
+
+		for _, name := range invalidNames {
+			if err := validateTableName(name); err == nil {
+				t.Errorf("Expected invalid name '%s' to be rejected", name)
+			}
+		}
+	})
 }

@@ -66,7 +66,7 @@ func (m *createSchemaMigrationsTable) Up(tx *sql.Tx) error {
 func (m *createSchemaMigrationsTable) Down(tx *sql.Tx) error {
 	dialect := database.DatabaseType(tx)
 	sql, err := sb.NewBuilder(dialect).
-		Table(DefaultTableName).
+		Table(m.tableName).
 		Drop()
 
 	if err != nil {

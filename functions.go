@@ -1,8 +1,10 @@
 package migrate
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // isValidMigrationID validates that the migration ID follows the format YYYY_MM_DD_description
@@ -34,6 +36,13 @@ func isValidMigrationID(id string) bool {
 	// Check day range (1-31)
 	day, _ := strconv.Atoi(parts[2])
 	if day < 1 || day > 31 {
+		return false
+	}
+
+	// Validate actual calendar date (e.g., reject February 30)
+	dateStr := fmt.Sprintf("%s-%s-%s", parts[0], parts[1], parts[2])
+	_, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
 		return false
 	}
 

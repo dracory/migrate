@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"sync"
 
 	"github.com/dracory/database"
 	"github.com/dracory/sb"
@@ -18,10 +19,18 @@ type migratorImplementation struct {
 	migrations []*migration
 	tableName  string
 	logger     *slog.Logger
+	mu         sync.Mutex
 }
 
 // AddMigration adds a new migration to the list
 func (m *migratorImplementation) AddMigration(mig MigrationInterface) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.addMigrationInternal(mig)
+}
+
+// addMigrationInternal adds a migration without locking (caller must hold mutex)
+func (m *migratorImplementation) addMigrationInternal(mig MigrationInterface) error {
 	if mig == nil {
 		return fmt.Errorf("migration cannot be nil")
 	}
@@ -55,8 +64,11 @@ func (m *migratorImplementation) AddMigration(mig MigrationInterface) error {
 
 // AddMigrations adds multiple migrations to the runner
 func (m *migratorImplementation) AddMigrations(migrations []MigrationInterface) error {
-	for _, migration := range migrations {
-		if err := m.AddMigration(migration); err != nil {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, mig := range migrations {
+		if err := m.addMigrationInternal(mig); err != nil {
 			return err
 		}
 	}
@@ -98,7 +110,13 @@ func (m *migratorImplementation) runmigration(migration *migration, direction st
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			if m.logger != nil {
+				m.logger.Warn("Failed to rollback transaction", "error", err)
+			}
+		}
+	}()
 
 	// Run the migration
 	var migrationErr error
@@ -182,6 +200,7 @@ func (m *migratorImplementation) runmigration(migration *migration, direction st
 }
 
 // hasBuiltinMigrations checks if builtin migrations have been added
+// Note: Caller must hold m.mu lock
 func (m *migratorImplementation) hasBuiltinMigrations() bool {
 	for _, migration := range m.migrations {
 		if migration.ID == BuiltinMigrationID {
@@ -193,10 +212,16 @@ func (m *migratorImplementation) hasBuiltinMigrations() bool {
 
 // Up runs all pending migrations
 func (m *migratorImplementation) Up() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	// Automatically add builtin migrations if not already added
 	if !m.hasBuiltinMigrations() {
-		if err := m.AddMigrations(GetBuiltinMigrations(m.tableName)); err != nil {
-			return fmt.Errorf("failed to add builtin migrations: %w", err)
+		builtinMigrations := GetBuiltinMigrations(m.tableName)
+		for _, mig := range builtinMigrations {
+			if err := m.addMigrationInternal(mig); err != nil {
+				return fmt.Errorf("failed to add builtin migrations: %w", err)
+			}
 		}
 	}
 
@@ -216,13 +241,17 @@ func (m *migratorImplementation) Up() error {
 	// Run pending migrations
 	for _, migration := range m.migrations {
 		if _, exists := applied[migration.ID]; !exists {
-			m.logger.Info("Running migration", "id", migration.ID, "description", migration.Description)
+			if m.logger != nil {
+				m.logger.Info("Running migration", "id", migration.ID, "description", migration.Description)
+			}
 
 			if err := m.runmigration(migration, DirectionUp); err != nil {
 				return fmt.Errorf("migration %s failed: %w", migration.ID, err)
 			}
 
-			m.logger.Info("migration completed", "id", migration.ID)
+			if m.logger != nil {
+				m.logger.Info("migration completed", "id", migration.ID)
+			}
 		}
 	}
 
@@ -231,10 +260,16 @@ func (m *migratorImplementation) Up() error {
 
 // Down rolls back the last migration
 func (m *migratorImplementation) Down() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	// Automatically add builtin migrations if not already added
 	if !m.hasBuiltinMigrations() {
-		if err := m.AddMigrations(GetBuiltinMigrations(m.tableName)); err != nil {
-			return fmt.Errorf("failed to add builtin migrations: %w", err)
+		builtinMigrations := GetBuiltinMigrations(m.tableName)
+		for _, mig := range builtinMigrations {
+			if err := m.addMigrationInternal(mig); err != nil {
+				return fmt.Errorf("failed to add builtin migrations: %w", err)
+			}
 		}
 	}
 
@@ -253,22 +288,31 @@ func (m *migratorImplementation) Down() error {
 	}
 
 	if lastmigration == nil {
-		m.logger.Info("No migrations to rollback")
+		if m.logger != nil {
+			m.logger.Info("No migrations to rollback")
+		}
 		return nil
 	}
 
-	m.logger.Info("Rolling back migration", "id", lastmigration.ID, "description", lastmigration.Description)
+	if m.logger != nil {
+		m.logger.Info("Rolling back migration", "id", lastmigration.ID, "description", lastmigration.Description)
+	}
 
 	if err := m.runmigration(lastmigration, DirectionDown); err != nil {
 		return fmt.Errorf("rollback %s failed: %w", lastmigration.ID, err)
 	}
 
-	m.logger.Info("Rollback completed", "id", lastmigration.ID)
+	if m.logger != nil {
+		m.logger.Info("Rollback completed", "id", lastmigration.ID)
+	}
 	return nil
 }
 
 // Status shows migration status
 func (m *migratorImplementation) Status() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	applied, err := m.getAppliedmigrations()
 	if err != nil {
 		return fmt.Errorf("failed to get applied migrations: %w", err)

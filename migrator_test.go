@@ -2,6 +2,8 @@ package migrate
 
 import (
 	"database/sql"
+	"fmt"
+	"sync"
 	"testing"
 
 	_ "modernc.org/sqlite"
@@ -145,6 +147,135 @@ func TestAddMigrations(t *testing.T) {
 		err := m.AddMigrations(migrations)
 		if err == nil {
 			t.Error("Expected error for nil migration")
+		}
+	})
+}
+
+func TestConcurrentMigrationAddition(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	m := New(db, nil)
+
+	// Add migrations concurrently from multiple goroutines
+	const numGoroutines = 10
+	const migrationsPerGoroutine = 5
+
+	errChan := make(chan error, numGoroutines)
+	var wg sync.WaitGroup
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(goroutineID int) {
+			defer wg.Done()
+
+			for j := 0; j < migrationsPerGoroutine; j++ {
+				migrationID := fmt.Sprintf("2026_03_21_%03d_test", goroutineID*migrationsPerGoroutine+j)
+				migration := &mockMigration{
+					id:          migrationID,
+					description: fmt.Sprintf("Test migration %d", goroutineID*migrationsPerGoroutine+j),
+					upFunc:      func(tx *sql.Tx) error { return nil },
+					downFunc:    func(tx *sql.Tx) error { return nil },
+				}
+
+				if err := m.AddMigration(migration); err != nil {
+					errChan <- fmt.Errorf("goroutine %d: %w", goroutineID, err)
+					return
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	// Check for errors
+	for err := range errChan {
+		t.Error(err)
+	}
+}
+
+func TestAddMigrationInternal(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	m := New(db, nil).(*migratorImplementation)
+
+	t.Run("adds valid migration", func(t *testing.T) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		migration := &mockMigration{
+			id:          "2026_03_21_001_test",
+			description: "Test migration",
+			upFunc:      func(tx *sql.Tx) error { return nil },
+			downFunc:    func(tx *sql.Tx) error { return nil },
+		}
+
+		err := m.addMigrationInternal(migration)
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		if len(m.migrations) != 1 {
+			t.Errorf("Expected 1 migration, got %d", len(m.migrations))
+		}
+	})
+
+	t.Run("rejects nil migration", func(t *testing.T) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		err := m.addMigrationInternal(nil)
+		if err == nil {
+			t.Error("Expected error for nil migration")
+		}
+	})
+
+	t.Run("rejects migration with empty ID", func(t *testing.T) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		migration := &mockMigration{
+			id:          "",
+			description: "Test",
+			upFunc:      func(tx *sql.Tx) error { return nil },
+			downFunc:    func(tx *sql.Tx) error { return nil },
+		}
+
+		err := m.addMigrationInternal(migration)
+		if err == nil {
+			t.Error("Expected error for empty ID")
+		}
+	})
+
+	t.Run("rejects duplicate migration ID", func(t *testing.T) {
+		m := New(db, nil).(*migratorImplementation)
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		migration1 := &mockMigration{
+			id:          "2026_03_21_001_test",
+			description: "Test 1",
+			upFunc:      func(tx *sql.Tx) error { return nil },
+			downFunc:    func(tx *sql.Tx) error { return nil },
+		}
+
+		migration2 := &mockMigration{
+			id:          "2026_03_21_001_test",
+			description: "Test 2",
+			upFunc:      func(tx *sql.Tx) error { return nil },
+			downFunc:    func(tx *sql.Tx) error { return nil },
+		}
+
+		err1 := m.addMigrationInternal(migration1)
+		if err1 != nil {
+			t.Fatalf("Expected no error for first migration, got %v", err1)
+		}
+
+		err2 := m.addMigrationInternal(migration2)
+		if err2 == nil {
+			t.Error("Expected error for duplicate migration ID")
 		}
 	})
 }
