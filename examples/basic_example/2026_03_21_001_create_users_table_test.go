@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"testing"
 
+	"github.com/dracory/migrate"
 	_ "modernc.org/sqlite"
-	"tap.com/pkg/migrate"
 )
 
 func TestCreateUsersTable(t *testing.T) {

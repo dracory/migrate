@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/dracory/migrate"
 	_ "modernc.org/sqlite"
-	"tap.com/pkg/migrate"
 )
 
 func main() {

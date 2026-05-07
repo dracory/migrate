@@ -37,6 +37,11 @@ func (m *CreateUsersTable) Up(tx *sql.Tx) error {
 			Type:     sb.COLUMN_TYPE_DATETIME,
 			Nullable: false,
 		}).
+		Column(sb.Column{
+			Name:     "updated_at",
+			Type:     sb.COLUMN_TYPE_DATETIME,
+			Nullable: false,
+		}).
 		Create()
 	if err != nil {
 		return err
