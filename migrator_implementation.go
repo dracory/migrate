@@ -313,25 +313,84 @@ func (m *migratorImplementation) Status(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	applied, err := m.getAppliedmigrations(ctx)
+	statuses, err := m.getStatusInternal(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get applied migrations: %w", err)
+		return err
 	}
 
 	fmt.Printf("\nmigration Status:\n")
 	fmt.Printf("================\n")
 
+	for _, status := range statuses {
+		state := "PENDING"
+		if status.Applied {
+			state = "APPLIED"
+		}
+		fmt.Printf("%s - %s - %s\n", status.ID, status.Description, state)
+	}
+
+	return nil
+}
+
+// getStatusInternal returns migration status without locking (caller must hold mutex)
+func (m *migratorImplementation) getStatusInternal(ctx context.Context) ([]MigrationStatus, error) {
+	applied, err := m.getAppliedmigrations(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get applied migrations: %w", err)
+	}
+
 	sort.Slice(m.migrations, func(i, j int) bool {
 		return m.migrations[i].ID < m.migrations[j].ID
 	})
 
+	statuses := make([]MigrationStatus, 0, len(m.migrations))
 	for _, migration := range m.migrations {
-		status := "PENDING"
-		if _, exists := applied[migration.ID]; exists {
-			status = "APPLIED"
-		}
-		fmt.Printf("%s - %s - %s\n", migration.ID, migration.Description, status)
+		_, exists := applied[migration.ID]
+		statuses = append(statuses, MigrationStatus{
+			ID:          migration.ID,
+			Description: migration.Description,
+			Applied:     exists,
+		})
 	}
 
-	return nil
+	return statuses, nil
+}
+
+// GetStatus returns migration status as structured data
+func (m *migratorImplementation) GetStatus(ctx context.Context) ([]MigrationStatus, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.getStatusInternal(ctx)
+}
+
+// GetHistory returns the migration execution history from the database
+func (m *migratorImplementation) GetHistory(ctx context.Context) ([]MigrationRecord, error) {
+	dialect := database.DatabaseType(m.db)
+	sql, params, err := sb.NewBuilder(dialect).
+		Table(m.tableName).
+		OrderBy(ColumnCompletedAt, "asc").
+		Select([]string{ColumnID, ColumnBatch, ColumnDescription, ColumnStartedAt, ColumnCompletedAt})
+
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := database.SelectToMapString(database.NewQueryableContext(ctx, m.db), sql, params...)
+	if err != nil {
+		return nil, err
+	}
+
+	records := make([]MigrationRecord, 0, len(rows))
+	for _, row := range rows {
+		records = append(records, MigrationRecord{
+			ID:          row[ColumnID],
+			Batch:       row[ColumnBatch],
+			Description: row[ColumnDescription],
+			StartedAt:   row[ColumnStartedAt],
+			CompletedAt: row[ColumnCompletedAt],
+		})
+	}
+
+	return records, nil
 }

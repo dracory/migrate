@@ -30,6 +30,7 @@ Implement the `MigrationInterface`:
 package migrations
 
 import (
+    "context"
     "database/sql"
     
     "github.com/dracory/database"
@@ -46,7 +47,7 @@ func (m *CreateUsersTable) Description() string {
     return "Create users table with email and timestamps"
 }
 
-func (m *CreateUsersTable) Up(tx *sql.Tx) error {
+func (m *CreateUsersTable) Up(ctx context.Context, tx *sql.Tx) error {
     dialect := database.DatabaseType(tx)
     sql, err := sb.NewBuilder(dialect).
         Table("users").
@@ -74,7 +75,7 @@ func (m *CreateUsersTable) Up(tx *sql.Tx) error {
     return err
 }
 
-func (m *CreateUsersTable) Down(tx *sql.Tx) error {
+func (m *CreateUsersTable) Down(ctx context.Context, tx *sql.Tx) error {
     dialect := database.DatabaseType(tx)
     sql, err := sb.NewBuilder(dialect).
         Table("users").
@@ -207,14 +208,41 @@ migrator := migrate.New(db, nil)  // Uses default table name and slog.Default()
 
 ### Migrator Methods
 
-#### `Up() error`
+#### `Up(ctx context.Context) error`
 Runs all pending migrations in lexicographical order by ID.
 
-#### `Down() error`
+#### `Down(ctx context.Context) error`
 Rolls back the last applied migration.
 
-#### `Status() error`
-Displays the status of all migrations (APPLIED or PENDING).
+#### `Status(ctx context.Context) error`
+Displays the status of all migrations (APPLIED or PENDING) to stdout.
+
+#### `GetStatus(ctx context.Context) ([]MigrationStatus, error)`
+Returns the status of all migrations as structured data. Useful for programmatic access to migration status.
+
+```go
+statuses, err := migrator.GetStatus(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+for _, status := range statuses {
+    fmt.Printf("%s: %s (Applied: %v)\n", status.ID, status.Description, status.Applied)
+}
+```
+
+#### `GetHistory(ctx context.Context) ([]MigrationRecord, error)`
+Returns the migration execution history from the database. Useful for audit trails and performance monitoring.
+
+```go
+history, err := migrator.GetHistory(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+for _, record := range history {
+    fmt.Printf("%s - Batch: %s - Started: %s - Completed: %s\n",
+        record.ID, record.Batch, record.StartedAt, record.CompletedAt)
+}
+```
 
 #### `AddMigration(migration MigrationInterface) error`
 Adds a single migration to the migrator.
@@ -231,8 +259,8 @@ All migrations must implement this interface:
 type MigrationInterface interface {
     ID() string
     Description() string
-    Up(tx *sql.Tx) error
-    Down(tx *sql.Tx) error
+    Up(ctx context.Context, tx *sql.Tx) error
+    Down(ctx context.Context, tx *sql.Tx) error
 }
 ```
 
