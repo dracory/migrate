@@ -197,16 +197,21 @@ func (m *migratorImplementation) runmigration(ctx context.Context, migration *mi
 // hasBuiltinMigrations checks if builtin migrations have been added
 // Note: Caller must hold m.mu lock
 func (m *migratorImplementation) hasBuiltinMigrations() bool {
-	builtinID := BuiltinMigrationID
-	if m.namingFormat == NamingFormatNNN {
-		builtinID = "2022_01_01_000_create_schema_migrations"
-	}
+	builtinID := GetBuiltinMigrationID(m.namingFormat)
 	for _, migration := range m.migrations {
 		if migration.ID == builtinID {
 			return true
 		}
 	}
 	return false
+}
+
+// sortMigrations sorts migrations by ID
+// Note: Caller must hold m.mu lock
+func (m *migratorImplementation) sortMigrations() {
+	sort.Slice(m.migrations, func(i, j int) bool {
+		return m.migrations[i].ID < m.migrations[j].ID
+	})
 }
 
 // ensureBuiltinMigrations adds builtin migrations if not already present
@@ -241,9 +246,7 @@ func (m *migratorImplementation) Up(ctx context.Context) error {
 	}
 
 	// Sort migrations by ID
-	sort.Slice(m.migrations, func(i, j int) bool {
-		return m.migrations[i].ID < m.migrations[j].ID
-	})
+	m.sortMigrations()
 
 	// Run pending migrations
 	for _, migration := range m.migrations {
@@ -340,9 +343,7 @@ func (m *migratorImplementation) getStatusInternal(ctx context.Context) ([]Migra
 		return nil, fmt.Errorf("failed to get applied migrations: %w", err)
 	}
 
-	sort.Slice(m.migrations, func(i, j int) bool {
-		return m.migrations[i].ID < m.migrations[j].ID
-	})
+	m.sortMigrations()
 
 	statuses := make([]MigrationStatus, 0, len(m.migrations))
 	for _, migration := range m.migrations {

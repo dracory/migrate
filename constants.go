@@ -36,3 +36,11 @@ func GetDefaultTableName() string {
 	}
 	return DefaultTableName
 }
+
+// GetBuiltinMigrationID returns the builtin migration ID based on naming format
+func GetBuiltinMigrationID(format NamingFormat) string {
+	if format == NamingFormatNNN {
+		return "2022_01_01_000_create_schema_migrations"
+	}
+	return BuiltinMigrationID
+}

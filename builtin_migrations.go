@@ -23,10 +23,7 @@ func NewCreateSchemaMigrationsTable(tableName string, format NamingFormat) Migra
 }
 
 func (m *createSchemaMigrationsTable) ID() string {
-	if m.namingFormat == NamingFormatNNN {
-		return "2022_01_01_000_create_schema_migrations"
-	}
-	return BuiltinMigrationID
+	return GetBuiltinMigrationID(m.namingFormat)
 }
 
 func (m *createSchemaMigrationsTable) Description() string {
