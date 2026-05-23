@@ -21,7 +21,7 @@ const (
 	DirectionUp   = "up"
 	DirectionDown = "down"
 
-	BuiltinMigrationID = "2001_01_01_0000_table_migration_tracker_create"
+	BuiltinMigrationIDBase = "table_migration_tracker_create"
 
 	// NamingFormatPrefixYYYY_MM_DD_HHMM uses timestamp-based format
 	NamingFormatPrefixYYYY_MM_DD_HHMM NamingFormat = "YYYY_MM_DD_HHMM"
@@ -41,8 +41,19 @@ func GetDefaultTableName() string {
 
 // GetBuiltinMigrationID returns the builtin migration ID based on naming format
 func GetBuiltinMigrationID(format NamingFormat) string {
+	defaultID := "2001_01_01_0000_" + BuiltinMigrationIDBase
+
 	if format == NamingFormatPrefixYYYY_MM_DD_NNN {
-		return "2001_01_01_000_table_migration_tracker_create"
+		return "2001_01_01_000_" + BuiltinMigrationIDBase
 	}
-	return BuiltinMigrationID
+
+	if format == NamingFormatPrefixYYYY_MM_DD_HHMM {
+		return "2001_01_01_0000_" + BuiltinMigrationIDBase
+	}
+
+	if format == NamingFormatPrefixNone {
+		return "_" + BuiltinMigrationIDBase
+	}
+
+	return defaultID
 }

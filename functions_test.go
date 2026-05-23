@@ -10,7 +10,7 @@ import (
 func TestValidateMigrationIDWithFormat_AcceptsValidHHMMFormatIDs(t *testing.T) {
 	validIDs := []string{
 		"2026_03_21_1200_create_users_table",
-		migrate.BuiltinMigrationID,
+		migrate.GetBuiltinMigrationID(migrate.NamingFormatPrefixYYYY_MM_DD_HHMM),
 		"2026_12_31_2359_add_holiday_table",
 		"2026_06_15_0830_update_user_profiles",
 	}
@@ -151,7 +151,7 @@ func TestValidateMigrationIDWithFormat_ValidatesSequenceRangeForNNNFormat(t *tes
 func TestValidateMigrationIDWithFormat_NNNFormatRejectsHHMMFormatIDs(t *testing.T) {
 	hhmmIDs := []string{
 		"2026_03_21_1200_create_users_table",
-		migrate.BuiltinMigrationID,
+		migrate.GetBuiltinMigrationID(migrate.NamingFormatPrefixYYYY_MM_DD_HHMM),
 	}
 	for _, id := range hhmmIDs {
 		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_NNN); err == nil {

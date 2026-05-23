@@ -12,7 +12,7 @@ import (
 func TestNewCreateSchemaMigrationsTable_HasCorrectID(t *testing.T) {
 	migration := migrate.NewCreateSchemaMigrationsTable("migration_tracker", migrate.NamingFormatPrefixYYYY_MM_DD_HHMM)
 
-	expected := migrate.BuiltinMigrationID
+	expected := migrate.GetBuiltinMigrationID(migrate.NamingFormatPrefixYYYY_MM_DD_HHMM)
 	if actual := migration.ID(); actual != expected {
 		t.Errorf("Expected ID %s, got %s", expected, actual)
 	}
@@ -113,7 +113,7 @@ func TestGetBuiltinMigrations(t *testing.T) {
 	}
 
 	firstMigration := migrations[0]
-	if firstMigration.ID() != migrate.BuiltinMigrationID {
+	if firstMigration.ID() != migrate.GetBuiltinMigrationID(migrate.NamingFormatPrefixYYYY_MM_DD_HHMM) {
 		t.Errorf("Expected first migration to be table_migration_tracker_create, got %s", firstMigration.ID())
 	}
 }

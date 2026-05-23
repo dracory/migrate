@@ -116,7 +116,7 @@ func TestMigrator_Up_RollsBackOnMigrationError(t *testing.T) {
 	builtinApplied := false
 	userApplied := false
 	for _, s := range status {
-		if s.ID == migrate.BuiltinMigrationID && s.Applied {
+		if s.ID == migrate.GetBuiltinMigrationID(migrate.NamingFormatPrefixYYYY_MM_DD_HHMM) && s.Applied {
 			builtinApplied = true
 		}
 		if s.ID == migration.ID() && s.Applied {
@@ -185,7 +185,7 @@ func TestMigrator_Down_RollsBackLastMigration(t *testing.T) {
 	builtinApplied := false
 	userApplied := false
 	for _, s := range status {
-		if s.ID == migrate.BuiltinMigrationID && s.Applied {
+		if s.ID == migrate.GetBuiltinMigrationID(migrate.NamingFormatPrefixYYYY_MM_DD_HHMM) && s.Applied {
 			builtinApplied = true
 		}
 		if s.ID == migration.ID() && s.Applied {
@@ -282,7 +282,7 @@ func TestMigrator_GetHistory_ReturnsMigrationHistory(t *testing.T) {
 	}
 
 	// The builtin migration should be first
-	if history[0].ID != migrate.BuiltinMigrationID {
+	if history[0].ID != migrate.GetBuiltinMigrationID(migrate.NamingFormatPrefixYYYY_MM_DD_HHMM) {
 		t.Errorf("Expected first history record to be builtin migration, got %s", history[0].ID)
 	}
 

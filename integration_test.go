@@ -256,7 +256,7 @@ func TestIntegrationMigrationOrdering(t *testing.T) {
 	}
 
 	firstID := history[0].ID
-	if firstID != migrate.BuiltinMigrationID {
+	if firstID != migrate.GetBuiltinMigrationID(migrate.NamingFormatPrefixYYYY_MM_DD_HHMM) {
 		t.Errorf("Expected builtin migration to be first, got %s", firstID)
 	}
 }
