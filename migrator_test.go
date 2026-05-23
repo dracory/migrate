@@ -22,209 +22,226 @@ func (m *mockMigration) Description() string                        { return m.d
 func (m *mockMigration) Up(ctx context.Context, tx *sql.Tx) error   { return m.upFunc(ctx, tx) }
 func (m *mockMigration) Down(ctx context.Context, tx *sql.Tx) error { return m.downFunc(ctx, tx) }
 
-func TestAddMigration(t *testing.T) {
+func TestAddMigration_AddsValidMigrationWithHHMMFormat(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	t.Run("adds valid migration with HHMM format", func(t *testing.T) {
-		m, err := New(db, nil)
-		if err != nil {
-			t.Fatalf("Failed to create migrator: %v", err)
-		}
-		migration := &mockMigration{
-			id:          "2026_03_21_1200_test",
-			description: "Test migration",
-			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-		}
+	m, err := New(db, nil)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+	migration := &mockMigration{
+		id:          "2026_03_21_1200_test",
+		description: "Test migration",
+		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+	}
 
-		err = m.AddMigration(migration)
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-	})
-
-	t.Run("adds valid migration with NNN format", func(t *testing.T) {
-		opts := &Options{
-			NamingFormat: NamingFormatNNN,
-		}
-		m, err := New(db, opts)
-		if err != nil {
-			t.Fatalf("Failed to create migrator: %v", err)
-		}
-		migration := &mockMigration{
-			id:          "2026_03_21_001_test",
-			description: "Test migration",
-			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-		}
-
-		err = m.AddMigration(migration)
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-	})
-
-	t.Run("rejects NNN format ID when using HHMM format", func(t *testing.T) {
-		m, err := New(db, nil)
-		if err != nil {
-			t.Fatalf("Failed to create migrator: %v", err)
-		}
-		migration := &mockMigration{
-			id:          "2026_03_21_001_test",
-			description: "Test migration",
-			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-		}
-
-		err = m.AddMigration(migration)
-		if err == nil {
-			t.Fatal("Expected error for NNN format ID in HHMM mode")
-		}
-	})
-
-	t.Run("rejects HHMM format ID when using NNN format", func(t *testing.T) {
-		opts := &Options{
-			NamingFormat: NamingFormatNNN,
-		}
-		m, err := New(db, opts)
-		if err != nil {
-			t.Fatalf("Failed to create migrator: %v", err)
-		}
-		migration := &mockMigration{
-			id:          "2026_03_21_1200_test",
-			description: "Test migration",
-			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-		}
-
-		err = m.AddMigration(migration)
-		if err == nil {
-			t.Fatal("Expected error for HHMM format ID in NNN mode")
-		}
-	})
-
-	t.Run("rejects nil migration", func(t *testing.T) {
-		m, err := New(db, nil)
-		if err != nil {
-			t.Fatalf("Failed to create migrator: %v", err)
-		}
-		err = m.AddMigration(nil)
-		if err == nil {
-			t.Error("Expected error for nil migration")
-		}
-		if err.Error() != "migration cannot be nil" {
-			t.Errorf("Expected 'migration cannot be nil' error, got %v", err)
-		}
-	})
-
-	t.Run("rejects migration with empty ID", func(t *testing.T) {
-		m, err := New(db, nil)
-		if err != nil {
-			t.Fatalf("Failed to create migrator: %v", err)
-		}
-		migration := &mockMigration{
-			id:          "",
-			description: "Test",
-			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-		}
-
-		err = m.AddMigration(migration)
-		if err == nil {
-			t.Error("Expected error for empty migration ID")
-		}
-		if err.Error() != "migration ID cannot be empty" {
-			t.Errorf("Expected 'migration ID cannot be empty' error, got %v", err)
-		}
-	})
-
-	t.Run("rejects duplicate migration ID", func(t *testing.T) {
-		m, err := New(db, nil)
-		if err != nil {
-			t.Fatalf("Failed to create migrator: %v", err)
-		}
-		migration1 := &mockMigration{
-			id:          "2026_03_21_1200_test",
-			description: "Test migration 1",
-			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-		}
-		migration2 := &mockMigration{
-			id:          "2026_03_21_1200_test",
-			description: "Test migration 2",
-			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-		}
-
-		if err := m.AddMigration(migration1); err != nil {
-			t.Fatalf("Expected no error for first migration, got %v", err)
-		}
-
-		err = m.AddMigration(migration2)
-		if err == nil {
-			t.Error("Expected error for duplicate migration ID")
-		}
-		if err.Error() != "migration with ID 2026_03_21_1200_test already exists" {
-			t.Errorf("Unexpected error message: %v", err)
-		}
-	})
+	err = m.AddMigration(migration)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
 }
 
-func TestAddMigrations(t *testing.T) {
+func TestAddMigration_AddsValidMigrationWithNNNFormat(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	t.Run("adds multiple valid migrations", func(t *testing.T) {
-		m, err := New(db, nil)
-		if err != nil {
-			t.Fatalf("Failed to create migrator: %v", err)
-		}
-		migrations := []MigrationInterface{
-			&mockMigration{
-				id:          "2026_03_21_1200_test",
-				description: "Test 1",
-				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-			},
-			&mockMigration{
-				id:          "2026_03_21_1300_test",
-				description: "Test 2",
-				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-			},
-		}
+	opts := &Options{
+		NamingFormat: NamingFormatNNN,
+	}
+	m, err := New(db, opts)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+	migration := &mockMigration{
+		id:          "2026_03_21_001_test",
+		description: "Test migration",
+		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+	}
 
-		if err := m.AddMigrations(migrations); err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
-	})
+	err = m.AddMigration(migration)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+}
 
-	t.Run("stops on first error", func(t *testing.T) {
-		m, err := New(db, nil)
-		if err != nil {
-			t.Fatalf("Failed to create migrator: %v", err)
-		}
-		migrations := []MigrationInterface{
-			&mockMigration{
-				id:          "2026_03_21_1200_test",
-				description: "Test 1",
-				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-			},
-			nil,
-			&mockMigration{
-				id:          "2026_03_21_1400_test",
-				description: "Test 3",
-				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-			},
-		}
+func TestAddMigration_RejectsNNNFormatIDWhenUsingHHMMFormat(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
 
-		if err := m.AddMigrations(migrations); err == nil {
-			t.Error("Expected error for nil migration")
-		}
-	})
+	m, err := New(db, nil)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+	migration := &mockMigration{
+		id:          "2026_03_21_001_test",
+		description: "Test migration",
+		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+	}
+
+	err = m.AddMigration(migration)
+	if err == nil {
+		t.Fatal("Expected error for NNN format ID in HHMM mode")
+	}
+}
+
+func TestAddMigration_RejectsHHMMFormatIDWhenUsingNNNFormat(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	opts := &Options{
+		NamingFormat: NamingFormatNNN,
+	}
+	m, err := New(db, opts)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+	migration := &mockMigration{
+		id:          "2026_03_21_1200_test",
+		description: "Test migration",
+		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+	}
+
+	err = m.AddMigration(migration)
+	if err == nil {
+		t.Fatal("Expected error for HHMM format ID in NNN mode")
+	}
+}
+
+func TestAddMigration_RejectsNilMigration(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	m, err := New(db, nil)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+	err = m.AddMigration(nil)
+	if err == nil {
+		t.Error("Expected error for nil migration")
+	}
+	if err.Error() != "migration cannot be nil" {
+		t.Errorf("Expected 'migration cannot be nil' error, got %v", err)
+	}
+}
+
+func TestAddMigration_RejectsMigrationWithEmptyID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	m, err := New(db, nil)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+	migration := &mockMigration{
+		id:          "",
+		description: "Test",
+		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+	}
+
+	err = m.AddMigration(migration)
+	if err == nil {
+		t.Error("Expected error for empty migration ID")
+	}
+	if err.Error() != "migration ID cannot be empty" {
+		t.Errorf("Expected 'migration ID cannot be empty' error, got %v", err)
+	}
+}
+
+func TestAddMigration_RejectsDuplicateMigrationID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	m, err := New(db, nil)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+	migration1 := &mockMigration{
+		id:          "2026_03_21_1200_test",
+		description: "Test migration 1",
+		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+	}
+	migration2 := &mockMigration{
+		id:          "2026_03_21_1200_test",
+		description: "Test migration 2",
+		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+	}
+
+	if err := m.AddMigration(migration1); err != nil {
+		t.Fatalf("Expected no error for first migration, got %v", err)
+	}
+
+	err = m.AddMigration(migration2)
+	if err == nil {
+		t.Error("Expected error for duplicate migration ID")
+	}
+	if err.Error() != "migration with ID 2026_03_21_1200_test already exists" {
+		t.Errorf("Unexpected error message: %v", err)
+	}
+}
+
+func TestAddMigrations_AddsMultipleValidMigrations(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	m, err := New(db, nil)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+	migrations := []MigrationInterface{
+		&mockMigration{
+			id:          "2026_03_21_1200_test",
+			description: "Test 1",
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+		},
+		&mockMigration{
+			id:          "2026_03_21_1300_test",
+			description: "Test 2",
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+		},
+	}
+
+	if err := m.AddMigrations(migrations); err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+}
+
+func TestAddMigrations_StopsOnFirstError(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	m, err := New(db, nil)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+	migrations := []MigrationInterface{
+		&mockMigration{
+			id:          "2026_03_21_1200_test",
+			description: "Test 1",
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+		},
+		nil,
+		&mockMigration{
+			id:          "2026_03_21_1400_test",
+			description: "Test 3",
+			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+		},
+	}
+
+	if err := m.AddMigrations(migrations); err == nil {
+		t.Error("Expected error for nil migration")
+	}
 }
 
 func TestConcurrentMigrationAddition(t *testing.T) {
@@ -276,7 +293,7 @@ func TestConcurrentMigrationAddition(t *testing.T) {
 	}
 }
 
-func TestAddMigrationInternal(t *testing.T) {
+func TestAddMigrationInternal_AddsValidMigration(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
@@ -285,86 +302,102 @@ func TestAddMigrationInternal(t *testing.T) {
 		t.Fatalf("Failed to create migrator: %v", err)
 	}
 	mImpl := m.(*migratorImplementation)
+	mImpl.mu.Lock()
+	defer mImpl.mu.Unlock()
 
-	t.Run("adds valid migration", func(t *testing.T) {
-		mImpl.mu.Lock()
-		defer mImpl.mu.Unlock()
+	migration := &mockMigration{
+		id:          "2026_03_21_1200_test",
+		description: "Test migration",
+		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+	}
 
-		migration := &mockMigration{
-			id:          "2026_03_21_1200_test",
-			description: "Test migration",
-			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-		}
+	err = mImpl.addMigrationInternal(migration)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
 
-		err := mImpl.addMigrationInternal(migration)
-		if err != nil {
-			t.Fatalf("Expected no error, got %v", err)
-		}
+	if len(mImpl.migrations) != 1 {
+		t.Errorf("Expected 1 migration, got %d", len(mImpl.migrations))
+	}
+}
 
-		if len(mImpl.migrations) != 1 {
-			t.Errorf("Expected 1 migration, got %d", len(mImpl.migrations))
-		}
-	})
+func TestAddMigrationInternal_RejectsNilMigration(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
 
-	t.Run("rejects nil migration", func(t *testing.T) {
-		mImpl.mu.Lock()
-		defer mImpl.mu.Unlock()
+	m, err := New(db, nil)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+	mImpl := m.(*migratorImplementation)
+	mImpl.mu.Lock()
+	defer mImpl.mu.Unlock()
 
-		err := mImpl.addMigrationInternal(nil)
-		if err == nil {
-			t.Error("Expected error for nil migration")
-		}
-	})
+	err = mImpl.addMigrationInternal(nil)
+	if err == nil {
+		t.Error("Expected error for nil migration")
+	}
+}
 
-	t.Run("rejects migration with empty ID", func(t *testing.T) {
-		mImpl.mu.Lock()
-		defer mImpl.mu.Unlock()
+func TestAddMigrationInternal_RejectsMigrationWithEmptyID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
 
-		migration := &mockMigration{
-			id:          "",
-			description: "Test",
-			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-		}
+	m, err := New(db, nil)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+	mImpl := m.(*migratorImplementation)
+	mImpl.mu.Lock()
+	defer mImpl.mu.Unlock()
 
-		err := mImpl.addMigrationInternal(migration)
-		if err == nil {
-			t.Error("Expected error for empty ID")
-		}
-	})
+	migration := &mockMigration{
+		id:          "",
+		description: "Test",
+		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+	}
 
-	t.Run("rejects duplicate migration ID", func(t *testing.T) {
-		m2, err := New(db, nil)
-		if err != nil {
-			t.Fatalf("Failed to create migrator: %v", err)
-		}
-		mImpl2 := m2.(*migratorImplementation)
-		mImpl2.mu.Lock()
-		defer mImpl2.mu.Unlock()
+	err = mImpl.addMigrationInternal(migration)
+	if err == nil {
+		t.Error("Expected error for empty ID")
+	}
+}
 
-		migration1 := &mockMigration{
-			id:          "2026_03_21_1200_test",
-			description: "Test 1",
-			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-		}
+func TestAddMigrationInternal_RejectsDuplicateMigrationID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
 
-		migration2 := &mockMigration{
-			id:          "2026_03_21_1200_test",
-			description: "Test 2",
-			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
-			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
-		}
+	m2, err := New(db, nil)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+	mImpl2 := m2.(*migratorImplementation)
+	mImpl2.mu.Lock()
+	defer mImpl2.mu.Unlock()
 
-		err1 := mImpl2.addMigrationInternal(migration1)
-		if err1 != nil {
-			t.Fatalf("Expected no error for first migration, got %v", err1)
-		}
+	migration1 := &mockMigration{
+		id:          "2026_03_21_1200_test",
+		description: "Test 1",
+		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+	}
 
-		err2 := mImpl2.addMigrationInternal(migration2)
-		if err2 == nil {
-			t.Error("Expected error for duplicate migration ID")
-		}
-	})
+	migration2 := &mockMigration{
+		id:          "2026_03_21_1200_test",
+		description: "Test 2",
+		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
+		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
+	}
+
+	err1 := mImpl2.addMigrationInternal(migration1)
+	if err1 != nil {
+		t.Fatalf("Expected no error for first migration, got %v", err1)
+	}
+
+	err2 := mImpl2.addMigrationInternal(migration2)
+	if err2 == nil {
+		t.Error("Expected error for duplicate migration ID")
+	}
 }

@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"unicode"
 )
 
 // Options configures the Migrator behavior
@@ -22,36 +21,6 @@ type Options struct {
 	NamingFormat NamingFormat
 }
 
-// ValidateTableName ensures the table name contains only safe characters
-// This function is exported to allow external validation of table names
-// before creating a migrator instance.
-func ValidateTableName(name string) error {
-	if len(name) == 0 {
-		return fmt.Errorf("table name cannot be empty")
-	}
-	if len(name) > 64 {
-		return fmt.Errorf("table name too long (max 64 characters)")
-	}
-
-	// First character must be a letter or underscore (not a digit)
-	firstRune := rune(name[0])
-	if !unicode.IsLetter(firstRune) && firstRune != '_' {
-		return fmt.Errorf("table name must start with a letter or underscore")
-	}
-
-	for _, r := range name {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' {
-			return fmt.Errorf("table name contains invalid characters (only alphanumeric and underscore allowed)")
-		}
-	}
-	return nil
-}
-
-// validateTableName is the internal version that calls the exported ValidateTableName
-func validateTableName(name string) error {
-	return ValidateTableName(name)
-}
-
 // New creates a new migrator instance
 func New(db *sql.DB, opts *Options) (MigratorInterface, error) {
 	if opts == nil {
@@ -63,7 +32,7 @@ func New(db *sql.DB, opts *Options) (MigratorInterface, error) {
 		tableName = GetDefaultTableName()
 	}
 
-	if err := validateTableName(tableName); err != nil {
+	if err := ValidateTableName(tableName); err != nil {
 		return nil, fmt.Errorf("invalid migration table name: %w", err)
 	}
 

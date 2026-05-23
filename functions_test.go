@@ -1,179 +1,241 @@
 package migrate
 
 import (
+	"strings"
 	"testing"
 )
 
-func TestIsValidMigrationIDWithFormat(t *testing.T) {
-	t.Run("accepts valid HHMM format IDs", func(t *testing.T) {
-		validIDs := []string{
-			"2026_03_21_1200_create_users_table",
-			"2022_01_01_0000_create_schema_migrations",
-			"2026_12_31_2359_add_holiday_table",
-			"2026_06_15_0830_update_user_profiles",
-		}
+func TestIsValidMigrationIDWithFormat_AcceptsValidHHMMFormatIDs(t *testing.T) {
+	validIDs := []string{
+		"2026_03_21_1200_create_users_table",
+		"2022_01_01_0000_create_schema_migrations",
+		"2026_12_31_2359_add_holiday_table",
+		"2026_06_15_0830_update_user_profiles",
+	}
 
-		for _, id := range validIDs {
-			if !isValidMigrationIDWithFormat(id, NamingFormatHHMM) {
-				t.Errorf("Expected valid ID %s to be accepted", id)
-			}
+	for _, id := range validIDs {
+		if err := IsValidMigrationID(id, NamingFormatHHMM); err != nil {
+			t.Errorf("Expected valid ID %s to be accepted, got error: %v", id, err)
 		}
-	})
+	}
+}
 
-	t.Run("rejects invalid HHMM format IDs", func(t *testing.T) {
-		invalidIDs := []string{
-			"invalid_format",
-			"2026_13_01_1200_create_table",
-			"2026_03_32_1200_create_table",
-			"2026_03_21",
-			"2026_03_21_1200",
-			"2026_03_21_1200_",
-			"",
-			"2026_03_21_create_users_table",    // missing HHMM
-			"2026_03_21_12_create_users_table", // HHMM too short
-		}
+func TestIsValidMigrationIDWithFormat_RejectsInvalidHHMMFormatIDs(t *testing.T) {
+	invalidIDs := []string{
+		"invalid_format",
+		"2026_13_01_1200_create_table",
+		"2026_03_32_1200_create_table",
+		"2026_03_21",
+		"2026_03_21_1200",
+		"2026_03_21_1200_",
+		"",
+		"2026_03_21_create_users_table",
+		"2026_03_21_12_create_users_table",
+	}
 
-		for _, id := range invalidIDs {
-			if isValidMigrationIDWithFormat(id, NamingFormatHHMM) {
-				t.Errorf("Expected invalid ID %s to be rejected", id)
-			}
+	for _, id := range invalidIDs {
+		if err := IsValidMigrationID(id, NamingFormatHHMM); err == nil {
+			t.Errorf("Expected invalid ID %s to be rejected", id)
 		}
-	})
+	}
+}
 
-	t.Run("validates month range for HHMM format", func(t *testing.T) {
-		invalidMonths := []string{"2026_00_01_1200_test", "2026_13_01_1200_test", "2026_99_01_1200_test"}
-		for _, id := range invalidMonths {
-			if isValidMigrationIDWithFormat(id, NamingFormatHHMM) {
-				t.Errorf("Expected invalid month in ID %s to be rejected", id)
-			}
+func TestIsValidMigrationIDWithFormat_ValidatesMonthRangeForHHMMFormat(t *testing.T) {
+	invalidMonths := []string{"2026_00_01_1200_test", "2026_13_01_1200_test", "2026_99_01_1200_test"}
+	for _, id := range invalidMonths {
+		if err := IsValidMigrationID(id, NamingFormatHHMM); err == nil {
+			t.Errorf("Expected invalid month in ID %s to be rejected", id)
 		}
-	})
+	}
+}
 
-	t.Run("validates day range for HHMM format", func(t *testing.T) {
-		invalidDays := []string{"2026_03_00_1200_test", "2026_03_32_1200_test", "2026_03_99_1200_test"}
-		for _, id := range invalidDays {
-			if isValidMigrationIDWithFormat(id, NamingFormatHHMM) {
-				t.Errorf("Expected invalid day in ID %s to be rejected", id)
-			}
+func TestIsValidMigrationIDWithFormat_ValidatesDayRangeForHHMMFormat(t *testing.T) {
+	invalidDays := []string{"2026_03_00_1200_test", "2026_03_32_1200_test", "2026_03_99_1200_test"}
+	for _, id := range invalidDays {
+		if err := IsValidMigrationID(id, NamingFormatHHMM); err == nil {
+			t.Errorf("Expected invalid day in ID %s to be rejected", id)
 		}
-	})
+	}
+}
 
-	t.Run("validates time range for HHMM format", func(t *testing.T) {
-		invalidTimes := []string{
-			"2026_03_21_2400_test", // hour 24 invalid
-			"2026_03_21_1260_test", // minute 60 invalid
-			"2026_03_21_9999_test", // both invalid
+func TestIsValidMigrationIDWithFormat_ValidatesTimeRangeForHHMMFormat(t *testing.T) {
+	invalidTimes := []string{
+		"2026_03_21_2400_test",
+		"2026_03_21_1260_test",
+		"2026_03_21_9999_test",
+	}
+	for _, id := range invalidTimes {
+		if err := IsValidMigrationID(id, NamingFormatHHMM); err == nil {
+			t.Errorf("Expected invalid time in ID %s to be rejected", id)
 		}
-		for _, id := range invalidTimes {
-			if isValidMigrationIDWithFormat(id, NamingFormatHHMM) {
-				t.Errorf("Expected invalid time in ID %s to be rejected", id)
-			}
-		}
-	})
+	}
+}
 
-	t.Run("rejects invalid calendar dates for HHMM format", func(t *testing.T) {
-		invalidDates := []string{
-			"2026_02_30_1200_test", // February 30 doesn't exist
-			"2026_04_31_1200_test", // April has only 30 days
-			"2026_06_31_1200_test", // June has only 30 days
-			"2026_09_31_1200_test", // September has only 30 days
-			"2026_11_31_1200_test", // November has only 30 days
+func TestIsValidMigrationIDWithFormat_RejectsInvalidCalendarDatesForHHMMFormat(t *testing.T) {
+	invalidDates := []string{
+		"2026_02_30_1200_test",
+		"2026_04_31_1200_test",
+		"2026_06_31_1200_test",
+		"2026_09_31_1200_test",
+		"2026_11_31_1200_test",
+	}
+	for _, id := range invalidDates {
+		if err := IsValidMigrationID(id, NamingFormatHHMM); err == nil {
+			t.Errorf("Expected invalid calendar date %s to be rejected", id)
 		}
-		for _, id := range invalidDates {
-			if isValidMigrationIDWithFormat(id, NamingFormatHHMM) {
-				t.Errorf("Expected invalid calendar date %s to be rejected", id)
-			}
-		}
-	})
+	}
+}
 
-	t.Run("accepts valid calendar dates including leap years for HHMM format", func(t *testing.T) {
-		validDates := []string{
-			"2024_02_29_1200_test", // 2024 is a leap year, Feb 29 is valid
-			"2026_02_28_1200_test", // 2026 is not a leap year, Feb 28 is valid
+func TestIsValidMigrationIDWithFormat_AcceptsValidCalendarDatesIncludingLeapYearsForHHMMFormat(t *testing.T) {
+	validDates := []string{
+		"2024_02_29_1200_test",
+		"2026_02_28_1200_test",
+	}
+	for _, id := range validDates {
+		if err := IsValidMigrationID(id, NamingFormatHHMM); err != nil {
+			t.Errorf("Expected valid calendar date %s to be accepted, got error: %v", id, err)
 		}
-		for _, id := range validDates {
-			if !isValidMigrationIDWithFormat(id, NamingFormatHHMM) {
-				t.Errorf("Expected valid calendar date %s to be accepted", id)
-			}
-		}
-	})
+	}
+}
 
-	t.Run("accepts valid NNN format IDs", func(t *testing.T) {
-		validIDs := []string{
-			"2026_03_21_001_create_users_table",
-			"2022_01_01_000_create_schema_migrations",
-			"2026_12_31_999_add_holiday_table",
-			"2026_06_15_123_update_user_profiles",
-		}
+func TestIsValidMigrationIDWithFormat_AcceptsValidNNNFormatIDs(t *testing.T) {
+	validIDs := []string{
+		"2026_03_21_001_create_users_table",
+		"2022_01_01_000_create_schema_migrations",
+		"2026_12_31_999_add_holiday_table",
+		"2026_06_15_123_update_user_profiles",
+	}
 
-		for _, id := range validIDs {
-			if !isValidMigrationIDWithFormat(id, NamingFormatNNN) {
-				t.Errorf("Expected valid NNN format ID %s to be accepted", id)
-			}
+	for _, id := range validIDs {
+		if err := IsValidMigrationID(id, NamingFormatNNN); err != nil {
+			t.Errorf("Expected valid NNN format ID %s to be accepted, got error: %v", id, err)
 		}
-	})
+	}
+}
 
-	t.Run("rejects invalid NNN format IDs", func(t *testing.T) {
-		invalidIDs := []string{
-			"invalid_format",
-			"2026_13_01_001_create_table",
-			"2026_03_32_001_create_table",
-			"2026_03_21",
-			"2026_03_21_001",
-			"2026_03_21_001_",
-			"",
-			"2026_03_21_create_users_table",      // missing NNN
-			"2026_03_21_12_create_users_table",   // NNN too short
-			"2026_03_21_1234_create_users_table", // NNN too long
-		}
+func TestIsValidMigrationIDWithFormat_RejectsInvalidNNNFormatIDs(t *testing.T) {
+	invalidIDs := []string{
+		"invalid_format",
+		"2026_13_01_001_create_table",
+		"2026_03_32_001_create_table",
+		"2026_03_21",
+		"2026_03_21_001",
+		"2026_03_21_001_",
+		"",
+		"2026_03_21_create_users_table",
+		"2026_03_21_12_create_users_table",
+		"2026_03_21_1234_create_users_table",
+	}
 
-		for _, id := range invalidIDs {
-			if isValidMigrationIDWithFormat(id, NamingFormatNNN) {
-				t.Errorf("Expected invalid NNN format ID %s to be rejected", id)
-			}
+	for _, id := range invalidIDs {
+		if err := IsValidMigrationID(id, NamingFormatNNN); err == nil {
+			t.Errorf("Expected invalid NNN format ID %s to be rejected", id)
 		}
-	})
+	}
+}
 
-	t.Run("validates sequence range for NNN format", func(t *testing.T) {
-		invalidSequences := []string{
-			"2026_03_21_1000_test", // sequence 1000 invalid
-			"2026_03_21_9999_test", // sequence 9999 invalid
+func TestIsValidMigrationIDWithFormat_ValidatesSequenceRangeForNNNFormat(t *testing.T) {
+	invalidSequences := []string{
+		"2026_03_21_1000_test",
+		"2026_03_21_9999_test",
+	}
+	for _, id := range invalidSequences {
+		if err := IsValidMigrationID(id, NamingFormatNNN); err == nil {
+			t.Errorf("Expected invalid sequence in NNN format ID %s to be rejected", id)
 		}
-		for _, id := range invalidSequences {
-			if isValidMigrationIDWithFormat(id, NamingFormatNNN) {
-				t.Errorf("Expected invalid sequence in NNN format ID %s to be rejected", id)
-			}
-		}
-	})
+	}
+}
 
-	t.Run("NNN format rejects HHMM format IDs", func(t *testing.T) {
-		hhmmIDs := []string{
-			"2026_03_21_1200_create_users_table",
-			"2022_01_01_0000_create_schema_migrations",
+func TestIsValidMigrationIDWithFormat_NNNFormatRejectsHHMMFormatIDs(t *testing.T) {
+	hhmmIDs := []string{
+		"2026_03_21_1200_create_users_table",
+		"2022_01_01_0000_create_schema_migrations",
+	}
+	for _, id := range hhmmIDs {
+		if err := IsValidMigrationID(id, NamingFormatNNN); err == nil {
+			t.Errorf("Expected HHMM format ID %s to be rejected in NNN mode", id)
 		}
-		for _, id := range hhmmIDs {
-			if isValidMigrationIDWithFormat(id, NamingFormatNNN) {
-				t.Errorf("Expected HHMM format ID %s to be rejected in NNN mode", id)
-			}
-		}
-	})
+	}
+}
 
-	t.Run("HHMM format rejects NNN format IDs", func(t *testing.T) {
-		nnnIDs := []string{
-			"2026_03_21_001_create_users_table",
-			"2022_01_01_000_create_schema_migrations",
+func TestIsValidMigrationIDWithFormat_HHMMFormatRejectsNNNFormatIDs(t *testing.T) {
+	nnnIDs := []string{
+		"2026_03_21_001_create_users_table",
+		"2022_01_01_000_create_schema_migrations",
+	}
+	for _, id := range nnnIDs {
+		if err := IsValidMigrationID(id, NamingFormatHHMM); err == nil {
+			t.Errorf("Expected NNN format ID %s to be rejected in HHMM mode", id)
 		}
-		for _, id := range nnnIDs {
-			if isValidMigrationIDWithFormat(id, NamingFormatHHMM) {
-				t.Errorf("Expected NNN format ID %s to be rejected in HHMM mode", id)
-			}
-		}
-	})
+	}
+}
 
-	t.Run("invalid format returns false", func(t *testing.T) {
-		testID := "2026_03_21_001_create_users_table"
-		if isValidMigrationIDWithFormat(testID, "invalid") {
-			t.Errorf("Expected ID to be rejected with invalid format")
+func TestIsValidMigrationIDWithFormat_InvalidFormatReturnsError(t *testing.T) {
+	testID := "2026_03_21_001_create_users_table"
+	if err := IsValidMigrationID(testID, "invalid"); err == nil {
+		t.Errorf("Expected ID to be rejected with invalid format")
+	}
+}
+
+func TestValidateTableName_AcceptsValidTableNames(t *testing.T) {
+	validNames := []string{
+		"schema_migrations",
+		"migrations",
+		"custom_table",
+		"a",
+		"Table123",
+		"_underscore",
+		"_123",
+	}
+
+	for _, name := range validNames {
+		if err := ValidateTableName(name); err != nil {
+			t.Errorf("Expected valid name '%s' to be accepted, got: %v", name, err)
 		}
-	})
+	}
+}
+
+func TestValidateTableName_RejectsEmptyTableName(t *testing.T) {
+	if err := ValidateTableName(""); err == nil {
+		t.Error("Expected error for empty table name")
+	}
+}
+
+func TestValidateTableName_RejectsTableNameTooLong(t *testing.T) {
+	longName := strings.Repeat("a", 65)
+	if err := ValidateTableName(longName); err == nil {
+		t.Error("Expected error for table name too long")
+	}
+}
+
+func TestValidateTableName_RejectsTableNameStartingWithDigit(t *testing.T) {
+	invalidNames := []string{
+		"123_table",
+		"9table",
+		"0_migrations",
+	}
+
+	for _, name := range invalidNames {
+		if err := ValidateTableName(name); err == nil {
+			t.Errorf("Expected invalid name '%s' (starting with digit) to be rejected", name)
+		}
+	}
+}
+
+func TestValidateTableName_RejectsTableNameWithSpecialCharacters(t *testing.T) {
+	invalidNames := []string{
+		"table-name",
+		"table.name",
+		"table name",
+		"table;name",
+		"table'name",
+		"table\"name",
+		"table*name",
+	}
+
+	for _, name := range invalidNames {
+		if err := ValidateTableName(name); err == nil {
+			t.Errorf("Expected invalid name '%s' to be rejected", name)
+		}
+	}
 }

@@ -41,12 +41,8 @@ func (m *migratorImplementation) addMigrationInternal(mig MigrationInterface) er
 	}
 
 	// Validate migration ID format based on naming format option
-	if !isValidMigrationIDWithFormat(mig.ID(), m.namingFormat) {
-		expectedFormat := "YYYY_MM_DD_HHMM_description"
-		if m.namingFormat == NamingFormatNNN {
-			expectedFormat = "YYYY_MM_DD_NNN_description"
-		}
-		return fmt.Errorf("migration ID must follow format %s, got: %s", expectedFormat, mig.ID())
+	if err := IsValidMigrationID(mig.ID(), m.namingFormat); err != nil {
+		return fmt.Errorf("invalid migration ID: %w", err)
 	}
 
 	// Check for duplicate IDs

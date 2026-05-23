@@ -5,103 +5,162 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
-// isValidMigrationIDWithFormat validates that the migration ID follows the specified format
-func isValidMigrationIDWithFormat(id string, format NamingFormat) bool {
-	// Check total length to prevent excessively long IDs
-	if len(id) > 255 {
-		return false
+// ValidateTableName ensures the table name contains only safe characters
+// This function is exported to allow external validation of table names
+// before creating a migrator instance.
+func ValidateTableName(name string) error {
+	if len(name) == 0 {
+		return fmt.Errorf("table name cannot be empty")
+	}
+	if len(name) > 64 {
+		return fmt.Errorf("table name too long (max 64 characters)")
 	}
 
-	// Use simple validation without regex for simplicity
-	parts := strings.Split(id, "_")
-	if len(parts) < 5 {
-		return false
+	// First character must be a letter or underscore (not a digit)
+	firstRune := rune(name[0])
+	if !unicode.IsLetter(firstRune) && firstRune != '_' {
+		return fmt.Errorf("table name must start with a letter or underscore")
 	}
 
-	// Check date parts: YYYY, MM, DD
-	if len(parts[0]) != 4 || len(parts[1]) != 2 || len(parts[2]) != 2 {
-		return false
-	}
-
-	// Check if date parts are numeric
-	for i := range 3 {
-		if _, err := strconv.Atoi(parts[i]); err != nil {
-			return false
+	for _, r := range name {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' {
+			return fmt.Errorf("table name contains invalid characters (only alphanumeric and underscore allowed)")
 		}
 	}
+	return nil
+}
 
-	// Check month range (1-12)
-	month, _ := strconv.Atoi(parts[1])
+// validateDatePart checks that the date part (YYYY, MM, DD) is valid
+//
+// Business rules:
+// - YYYY must be 4 digits
+// - MM must be 2 digits (01-12)
+// - DD must be 2 digits (01-31)
+// - The date must be valid (e.g., 2025-02-30 is invalid)
+// - The date can be any valid date (past, present, or future)
+//
+// Parameters:
+//   - parts: array of strings split by underscore
+//
+// Returns:
+//   - error if the date part is invalid, nil otherwise
+func validateDatePart(parts []string) error {
+	if len(parts[0]) != 4 || len(parts[1]) != 2 || len(parts[2]) != 2 {
+		return fmt.Errorf("date parts must be YYYY_MM_DD format")
+	}
+
+	var nums [3]int
+	for i := range 3 {
+		n, err := strconv.Atoi(parts[i])
+		if err != nil {
+			return fmt.Errorf("date part %d must be numeric: %w", i, err)
+		}
+		nums[i] = n
+	}
+
+	month := nums[1]
 	if month < 1 || month > 12 {
-		return false
+		return fmt.Errorf("month must be between 01 and 12, got %02d", month)
 	}
 
-	// Check day range (1-31)
-	day, _ := strconv.Atoi(parts[2])
+	day := nums[2]
 	if day < 1 || day > 31 {
-		return false
+		return fmt.Errorf("day must be between 01 and 31, got %02d", day)
 	}
 
-	// Validate actual calendar date (e.g., reject February 30)
 	dateStr := fmt.Sprintf("%s-%s-%s", parts[0], parts[1], parts[2])
 	_, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
-		return false
+		return fmt.Errorf("invalid calendar date: %w", err)
+	}
+	return nil
+}
+
+// validateTimePart checks that the time part (HHMM) is valid (00:00-23:59)
+func validateTimePart(part string) error {
+	if len(part) != 4 {
+		return fmt.Errorf("time part must be 4 digits (HHMM)")
 	}
 
-	// Validate the fourth part based on format
-	if format == NamingFormatHHMM {
-		// Check time part: HHMM (4 digits)
-		if len(parts[3]) != 4 {
-			return false
-		}
-
-		// Check if time part is numeric
-		if _, err := strconv.Atoi(parts[3]); err != nil {
-			return false
-		}
-
-		// Validate time part: HH (0-23) and MM (0-59)
-		hour, _ := strconv.Atoi(parts[3][:2])
-		minute, _ := strconv.Atoi(parts[3][2:])
-		if hour < 0 || hour > 23 {
-			return false
-		}
-		if minute < 0 || minute > 59 {
-			return false
-		}
-	} else if format == NamingFormatNNN {
-		// Check sequence part: NNN (3 digits)
-		if len(parts[3]) != 3 {
-			return false
-		}
-
-		// Check if sequence part is numeric
-		if _, err := strconv.Atoi(parts[3]); err != nil {
-			return false
-		}
-
-		// Validate sequence part: 000-999
-		sequence, _ := strconv.Atoi(parts[3])
-		if sequence < 0 || sequence > 999 {
-			return false
-		}
-	} else {
-		return false
+	num, err := strconv.Atoi(part)
+	if err != nil {
+		return fmt.Errorf("time part must be numeric: %w", err)
 	}
 
-	// Check that description exists and is not empty
+	hour := num / 100
+	minute := num % 100
+	if hour < 0 || hour > 23 {
+		return fmt.Errorf("hour must be between 00 and 23, got %02d", hour)
+	}
+	if minute < 0 || minute > 59 {
+		return fmt.Errorf("minute must be between 00 and 59, got %02d", minute)
+	}
+	return nil
+}
+
+// validateSequencePart checks that the sequence part (NNN) is valid (000-999)
+func validateSequencePart(part string) error {
+	if len(part) != 3 {
+		return fmt.Errorf("sequence part must be 3 digits (NNN)")
+	}
+
+	sequence, err := strconv.Atoi(part)
+	if err != nil {
+		return fmt.Errorf("sequence part must be numeric: %w", err)
+	}
+
+	if sequence < 0 || sequence > 999 {
+		return fmt.Errorf("sequence must be between 000 and 999, got %03d", sequence)
+	}
+	return nil
+}
+
+// validateDescription checks that the description exists and is within length limits
+func validateDescription(parts []string) error {
 	description := strings.Join(parts[4:], "_")
 	if len(description) == 0 {
-		return false
+		return fmt.Errorf("description cannot be empty")
 	}
-
-	// Check description length (prevent excessively long descriptions)
 	if len(description) > 200 {
-		return false
+		return fmt.Errorf("description too long (max 200 characters)")
+	}
+	return nil
+}
+
+// IsValidMigrationID validates that the migration ID follows the specified format
+// Supported formats:
+//   - YYYY_MM_DD_HHMM_description (for HHMM format)
+//   - YYYY_MM_DD_NNN_description (for NNN format)
+func IsValidMigrationID(id string, format NamingFormat) error {
+	if len(id) > 255 {
+		return fmt.Errorf("migration ID too long (max 255 characters)")
 	}
 
-	return true
+	parts := strings.Split(id, "_")
+
+	// Minimum 5 parts: YYYY, MM, DD, [HHMM|NNN], description
+	if len(parts) < 5 {
+		return fmt.Errorf("migration ID must have at least 5 parts separated by underscores")
+	}
+
+	if err := validateDatePart(parts); err != nil {
+		return err
+	}
+
+	if format == NamingFormatHHMM {
+		if err := validateTimePart(parts[3]); err != nil {
+			return err
+		}
+	} else if format == NamingFormatNNN {
+		if err := validateSequencePart(parts[3]); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("invalid naming format: %s", format)
+	}
+
+	return validateDescription(parts)
 }
