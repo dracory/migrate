@@ -11,6 +11,13 @@ import (
 // ValidateTableName ensures the table name contains only safe characters
 // This function is exported to allow external validation of table names
 // before creating a migrator instance.
+//
+// Business Logic:
+// - Rejects empty table names
+// - Enforces maximum length of 64 characters
+// - First character must be a letter or underscore (not a digit)
+// - All characters must be alphanumeric or underscore
+// - Prevents SQL injection and naming conflicts
 func ValidateTableName(name string) error {
 	if len(name) == 0 {
 		return fmt.Errorf("table name cannot be empty")
@@ -80,6 +87,13 @@ func validateDatePart(parts []string) error {
 }
 
 // validateTimePart checks that the time part (HHMM) is valid (00:00-23:59)
+//
+// Business Logic:
+// - Requires exactly 4 digits
+// - Parses as integer to extract hour and minute
+// - Hour must be between 00-23
+// - Minute must be between 00-59
+// - Ensures valid 24-hour time format
 func validateTimePart(part string) error {
 	if len(part) != 4 {
 		return fmt.Errorf("time part must be 4 digits (HHMM)")
@@ -102,6 +116,12 @@ func validateTimePart(part string) error {
 }
 
 // validateSequencePart checks that the sequence part (NNN) is valid (000-999)
+//
+// Business Logic:
+// - Requires exactly 3 digits
+// - Parses as integer
+// - Sequence must be between 000-999
+// - Allows up to 999 migrations per day
 func validateSequencePart(part string) error {
 	if len(part) != 3 {
 		return fmt.Errorf("sequence part must be 3 digits (NNN)")
@@ -119,6 +139,12 @@ func validateSequencePart(part string) error {
 }
 
 // validateDescription checks that the description exists and is within length limits
+//
+// Business Logic:
+// - Joins all parts after the time/sequence part with underscores
+// - Description cannot be empty
+// - Maximum length is 200 characters
+// - Ensures meaningful migration identifiers
 func validateDescription(parts []string) error {
 	description := strings.Join(parts[4:], "_")
 	if len(description) == 0 {
@@ -135,6 +161,16 @@ func validateDescription(parts []string) error {
 //   - YYYY_MM_DD_HHMM_description (for HHMM format)
 //   - YYYY_MM_DD_NNN_description (for NNN format)
 //   - none (no prefix format restriction)
+//
+// Business Logic:
+// - Enforces maximum length of 255 characters
+// - Rejects empty IDs
+// - For "none" format: only validates length and non-empty
+// - For other formats: requires at least 5 underscore-separated parts
+// - Validates date part (YYYY_MM_DD) is a valid calendar date
+// - Validates time part (HHMM) or sequence part (NNN) based on format
+// - Validates description exists and is within length limits
+// - Ensures lexicographical ordering by date/time
 func ValidateMigrationID(id string, format NamingFormat) error {
 	if len(id) > 255 {
 		return fmt.Errorf("migration ID too long (max 255 characters)")

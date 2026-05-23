@@ -23,6 +23,14 @@ type Options struct {
 }
 
 // New creates a new migrator instance
+//
+// Business Logic:
+// - Initializes options to empty struct if nil provided
+// - Uses provided table name or defaults from GetDefaultTableName()
+// - Validates table name for safety (alphanumeric and underscore only)
+// - Uses provided logger or nil (disables logging)
+// - Uses provided naming format or defaults to HHMM format
+// - Returns migrator implementation with initialized migrations list
 func New(db *sql.DB, opts *Options) (MigratorInterface, error) {
 	if opts == nil {
 		opts = &Options{}
