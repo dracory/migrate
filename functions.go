@@ -7,11 +7,6 @@ import (
 	"time"
 )
 
-// isValidMigrationID validates that the migration ID follows the format YYYY_MM_DD_HHMM_description
-func isValidMigrationID(id string) bool {
-	return isValidMigrationIDWithFormat(id, NamingFormatHHMM)
-}
-
 // isValidMigrationIDWithFormat validates that the migration ID follows the specified format
 func isValidMigrationIDWithFormat(id string, format NamingFormat) bool {
 	// Check total length to prevent excessively long IDs
