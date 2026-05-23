@@ -16,6 +16,10 @@ type Options struct {
 	// Logger is used for migration logging.
 	// If nil, logging is disabled.
 	Logger *slog.Logger
+
+	// NamingFormat specifies the format for migration IDs.
+	// Defaults to NamingFormatHHMM if not specified.
+	NamingFormat NamingFormat
 }
 
 // ValidateTableName ensures the table name contains only safe characters
@@ -66,10 +70,16 @@ func New(db *sql.DB, opts *Options) (MigratorInterface, error) {
 	logger := opts.Logger
 	// If nil, logging is disabled (keep logger as nil)
 
+	namingFormat := opts.NamingFormat
+	if namingFormat == "" {
+		namingFormat = NamingFormatHHMM
+	}
+
 	return &migratorImplementation{
-		db:         db,
-		migrations: make([]*migration, 0),
-		tableName:  tableName,
-		logger:     logger,
+		db:           db,
+		migrations:   make([]*migration, 0),
+		tableName:    tableName,
+		logger:       logger,
+		namingFormat: namingFormat,
 	}, nil
 }

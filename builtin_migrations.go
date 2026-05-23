@@ -11,16 +11,28 @@ import (
 // createSchemaMigrationsTable is a builtin migration that creates the table
 // used to track applied migrations
 type createSchemaMigrationsTable struct {
-	tableName string
+	tableName    string
+	namingFormat NamingFormat
 }
 
 func NewCreateSchemaMigrationsTable(tableName string) MigrationInterface {
 	return &createSchemaMigrationsTable{
-		tableName: tableName,
+		tableName:    tableName,
+		namingFormat: NamingFormatHHMM,
+	}
+}
+
+func NewCreateSchemaMigrationsTableWithFormat(tableName string, format NamingFormat) MigrationInterface {
+	return &createSchemaMigrationsTable{
+		tableName:    tableName,
+		namingFormat: format,
 	}
 }
 
 func (m *createSchemaMigrationsTable) ID() string {
+	if m.namingFormat == NamingFormatNNN {
+		return "2022_01_01_000_create_schema_migrations"
+	}
 	return BuiltinMigrationID
 }
 
@@ -86,5 +98,12 @@ func (m *createSchemaMigrationsTable) Down(ctx context.Context, tx *sql.Tx) erro
 func GetBuiltinMigrations(tableName string) []MigrationInterface {
 	return []MigrationInterface{
 		NewCreateSchemaMigrationsTable(tableName),
+	}
+}
+
+// GetBuiltinMigrationsWithFormat returns the built-in migrations with the specified naming format
+func GetBuiltinMigrationsWithFormat(tableName string, format NamingFormat) []MigrationInterface {
+	return []MigrationInterface{
+		NewCreateSchemaMigrationsTableWithFormat(tableName, format),
 	}
 }

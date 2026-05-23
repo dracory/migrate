@@ -98,3 +98,84 @@ func TestIsValidMigrationID(t *testing.T) {
 		}
 	})
 }
+
+func TestIsValidMigrationIDWithFormat(t *testing.T) {
+	t.Run("accepts valid NNN format IDs", func(t *testing.T) {
+		validIDs := []string{
+			"2026_03_21_001_create_users_table",
+			"2022_01_01_000_create_schema_migrations",
+			"2026_12_31_999_add_holiday_table",
+			"2026_06_15_123_update_user_profiles",
+		}
+
+		for _, id := range validIDs {
+			if !isValidMigrationIDWithFormat(id, NamingFormatNNN) {
+				t.Errorf("Expected valid NNN format ID %s to be accepted", id)
+			}
+		}
+	})
+
+	t.Run("rejects invalid NNN format IDs", func(t *testing.T) {
+		invalidIDs := []string{
+			"invalid_format",
+			"2026_13_01_001_create_table",
+			"2026_03_32_001_create_table",
+			"2026_03_21",
+			"2026_03_21_001",
+			"2026_03_21_001_",
+			"",
+			"2026_03_21_create_users_table",      // missing NNN
+			"2026_03_21_12_create_users_table",   // NNN too short
+			"2026_03_21_1234_create_users_table", // NNN too long
+		}
+
+		for _, id := range invalidIDs {
+			if isValidMigrationIDWithFormat(id, NamingFormatNNN) {
+				t.Errorf("Expected invalid NNN format ID %s to be rejected", id)
+			}
+		}
+	})
+
+	t.Run("validates sequence range for NNN format", func(t *testing.T) {
+		invalidSequences := []string{
+			"2026_03_21_1000_test", // sequence 1000 invalid
+			"2026_03_21_9999_test", // sequence 9999 invalid
+		}
+		for _, id := range invalidSequences {
+			if isValidMigrationIDWithFormat(id, NamingFormatNNN) {
+				t.Errorf("Expected invalid sequence in NNN format ID %s to be rejected", id)
+			}
+		}
+	})
+
+	t.Run("NNN format rejects HHMM format IDs", func(t *testing.T) {
+		hhmmIDs := []string{
+			"2026_03_21_1200_create_users_table",
+			"2022_01_01_0000_create_schema_migrations",
+		}
+		for _, id := range hhmmIDs {
+			if isValidMigrationIDWithFormat(id, NamingFormatNNN) {
+				t.Errorf("Expected HHMM format ID %s to be rejected in NNN mode", id)
+			}
+		}
+	})
+
+	t.Run("HHMM format rejects NNN format IDs", func(t *testing.T) {
+		nnnIDs := []string{
+			"2026_03_21_001_create_users_table",
+			"2022_01_01_000_create_schema_migrations",
+		}
+		for _, id := range nnnIDs {
+			if isValidMigrationIDWithFormat(id, NamingFormatHHMM) {
+				t.Errorf("Expected NNN format ID %s to be rejected in HHMM mode", id)
+			}
+		}
+	})
+
+	t.Run("invalid format returns false", func(t *testing.T) {
+		testID := "2026_03_21_001_create_users_table"
+		if isValidMigrationIDWithFormat(testID, "invalid") {
+			t.Errorf("Expected ID to be rejected with invalid format")
+		}
+	})
+}

@@ -15,11 +15,12 @@ import (
 
 // migratorImplementation handles database migrations
 type migratorImplementation struct {
-	db         *sql.DB
-	migrations []*migration
-	tableName  string
-	logger     *slog.Logger
-	mu         sync.Mutex
+	db           *sql.DB
+	migrations   []*migration
+	tableName    string
+	logger       *slog.Logger
+	namingFormat NamingFormat
+	mu           sync.Mutex
 }
 
 // AddMigration adds a new migration to the list
@@ -39,9 +40,13 @@ func (m *migratorImplementation) addMigrationInternal(mig MigrationInterface) er
 		return fmt.Errorf("migration ID cannot be empty")
 	}
 
-	// Validate migration ID format: YYYY_MM_DD_HHMM_description
-	if !isValidMigrationID(mig.ID()) {
-		return fmt.Errorf("migration ID must follow format YYYY_MM_DD_HHMM_description, got: %s", mig.ID())
+	// Validate migration ID format based on naming format option
+	if !isValidMigrationIDWithFormat(mig.ID(), m.namingFormat) {
+		expectedFormat := "YYYY_MM_DD_HHMM_description"
+		if m.namingFormat == NamingFormatNNN {
+			expectedFormat = "YYYY_MM_DD_NNN_description"
+		}
+		return fmt.Errorf("migration ID must follow format %s, got: %s", expectedFormat, mig.ID())
 	}
 
 	// Check for duplicate IDs
@@ -208,8 +213,12 @@ func (m *migratorImplementation) runmigration(ctx context.Context, migration *mi
 // hasBuiltinMigrations checks if builtin migrations have been added
 // Note: Caller must hold m.mu lock
 func (m *migratorImplementation) hasBuiltinMigrations() bool {
+	builtinID := BuiltinMigrationID
+	if m.namingFormat == NamingFormatNNN {
+		builtinID = "2022_01_01_000_create_schema_migrations"
+	}
 	for _, migration := range m.migrations {
-		if migration.ID == BuiltinMigrationID {
+		if migration.ID == builtinID {
 			return true
 		}
 	}
@@ -223,7 +232,7 @@ func (m *migratorImplementation) Up(ctx context.Context) error {
 
 	// Automatically add builtin migrations if not already added
 	if !m.hasBuiltinMigrations() {
-		builtinMigrations := GetBuiltinMigrations(m.tableName)
+		builtinMigrations := GetBuiltinMigrationsWithFormat(m.tableName, m.namingFormat)
 		for _, mig := range builtinMigrations {
 			if err := m.addMigrationInternal(mig); err != nil {
 				return fmt.Errorf("failed to add builtin migrations: %w", err)
@@ -271,7 +280,7 @@ func (m *migratorImplementation) Down(ctx context.Context) error {
 
 	// Automatically add builtin migrations if not already added
 	if !m.hasBuiltinMigrations() {
-		builtinMigrations := GetBuiltinMigrations(m.tableName)
+		builtinMigrations := GetBuiltinMigrationsWithFormat(m.tableName, m.namingFormat)
 		for _, mig := range builtinMigrations {
 			if err := m.addMigrationInternal(mig); err != nil {
 				return fmt.Errorf("failed to add builtin migrations: %w", err)
