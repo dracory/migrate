@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewCreateSchemaMigrationsTable_HasCorrectID(t *testing.T) {
-	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations")
+	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations", migrate.NamingFormatHHMM)
 
 	expected := "2022_01_01_0000_create_schema_migrations"
 	if actual := migration.ID(); actual != expected {
@@ -19,7 +19,7 @@ func TestNewCreateSchemaMigrationsTable_HasCorrectID(t *testing.T) {
 }
 
 func TestNewCreateSchemaMigrationsTable_HasDescription(t *testing.T) {
-	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations")
+	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations", migrate.NamingFormatHHMM)
 
 	desc := migration.Description()
 	if desc == "" {
@@ -31,7 +31,7 @@ func TestNewCreateSchemaMigrationsTable_UpCreatesSchemaMigrationsTable(t *testin
 	db := setupTestDB(t)
 	defer db.Close()
 
-	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations")
+	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations", migrate.NamingFormatHHMM)
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -63,7 +63,7 @@ func TestNewCreateSchemaMigrationsTable_DownDropsSchemaMigrationsTable(t *testin
 	defer db.Close()
 
 	// First create the table
-	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations")
+	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations", migrate.NamingFormatHHMM)
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -106,7 +106,7 @@ func TestNewCreateSchemaMigrationsTable_DownDropsSchemaMigrationsTable(t *testin
 }
 
 func TestGetBuiltinMigrations(t *testing.T) {
-	migrations := migrate.GetBuiltinMigrations("schema_migrations")
+	migrations := migrate.GetBuiltinMigrations("schema_migrations", migrate.NamingFormatHHMM)
 
 	if len(migrations) == 0 {
 		t.Error("Expected at least one builtin migration")
@@ -118,8 +118,8 @@ func TestGetBuiltinMigrations(t *testing.T) {
 	}
 }
 
-func TestNewCreateSchemaMigrationsTableWithFormat_NNN(t *testing.T) {
-	migration := migrate.NewCreateSchemaMigrationsTableWithFormat("schema_migrations", migrate.NamingFormatNNN)
+func TestNewCreateSchemaMigrationsTable_NNN(t *testing.T) {
+	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations", migrate.NamingFormatNNN)
 
 	expected := "2022_01_01_000_create_schema_migrations"
 	if actual := migration.ID(); actual != expected {
@@ -127,8 +127,8 @@ func TestNewCreateSchemaMigrationsTableWithFormat_NNN(t *testing.T) {
 	}
 }
 
-func TestGetBuiltinMigrationsWithFormat(t *testing.T) {
-	migrations := migrate.GetBuiltinMigrationsWithFormat("schema_migrations", migrate.NamingFormatNNN)
+func TestGetBuiltinMigrations_NNN(t *testing.T) {
+	migrations := migrate.GetBuiltinMigrations("schema_migrations", migrate.NamingFormatNNN)
 
 	if len(migrations) == 0 {
 		t.Error("Expected at least one builtin migration")

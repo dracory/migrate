@@ -101,10 +101,10 @@ func (m *migratorImplementation) getAppliedmigrations(ctx context.Context) (map[
 		return nil, err
 	}
 
-	// Convert map[string]string to map[string]bool
-	applied := make(map[string]bool)
-	for _, migrationMap := range appliedStrings {
-		if id, ok := migrationMap[ColumnID]; ok {
+	// Convert slice of maps to map[string]bool for existence checks
+	applied := make(map[string]bool, len(appliedStrings))
+	for _, row := range appliedStrings {
+		if id, ok := row[ColumnID]; ok {
 			applied[id] = true
 		}
 	}
@@ -148,9 +148,10 @@ func (m *migratorImplementation) runmigration(ctx context.Context, migration *mi
 	// Update migrations table
 	if direction == DirectionUp {
 		dialect := database.DatabaseType(tx)
-		// Generate batch ID (YYYYMMDDHHMMSS)
+		// Generate batch ID (YYYYMMDDHHMMSS) and timestamps after migration completes
 		batchID := carbon.Now(carbon.UTC).Format("YmdHis")
 		startedAt := carbon.Now(carbon.UTC).ToDateTimeString()
+		completedAt := carbon.Now(carbon.UTC).ToDateTimeString()
 
 		sql, params, err := sb.NewBuilder(dialect).
 			Table(m.tableName).
@@ -159,27 +160,6 @@ func (m *migratorImplementation) runmigration(ctx context.Context, migration *mi
 				ColumnBatch:       batchID,
 				ColumnDescription: migration.Description,
 				ColumnStartedAt:   startedAt,
-				ColumnCompletedAt: startedAt, // Will be updated after migration completes
-			})
-
-		if err != nil {
-			return err
-		}
-
-		if _, execErr := tx.Exec(sql, params...); execErr != nil {
-			return execErr
-		}
-
-		// Update completed_at timestamp after migration completes
-		completedAt := carbon.Now(carbon.UTC).ToDateTimeString()
-		updateSQL, updateParams, err := sb.NewBuilder(dialect).
-			Table(m.tableName).
-			Where(&sb.Where{
-				Column:   ColumnID,
-				Operator: "=",
-				Value:    migration.ID,
-			}).
-			Update(map[string]string{
 				ColumnCompletedAt: completedAt,
 			})
 
@@ -187,7 +167,7 @@ func (m *migratorImplementation) runmigration(ctx context.Context, migration *mi
 			return err
 		}
 
-		if _, execErr := tx.Exec(updateSQL, updateParams...); execErr != nil {
+		if _, execErr := tx.Exec(sql, params...); execErr != nil {
 			return execErr
 		}
 	} else {
@@ -229,19 +209,27 @@ func (m *migratorImplementation) hasBuiltinMigrations() bool {
 	return false
 }
 
-// Up runs all pending migrations
-func (m *migratorImplementation) Up(ctx context.Context) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	// Automatically add builtin migrations if not already added
+// ensureBuiltinMigrations adds builtin migrations if not already present
+// Note: Caller must hold m.mu lock
+func (m *migratorImplementation) ensureBuiltinMigrations() error {
 	if !m.hasBuiltinMigrations() {
-		builtinMigrations := GetBuiltinMigrationsWithFormat(m.tableName, m.namingFormat)
+		builtinMigrations := GetBuiltinMigrations(m.tableName, m.namingFormat)
 		for _, mig := range builtinMigrations {
 			if err := m.addMigrationInternal(mig); err != nil {
 				return fmt.Errorf("failed to add builtin migrations: %w", err)
 			}
 		}
+	}
+	return nil
+}
+
+// Up runs all pending migrations
+func (m *migratorImplementation) Up(ctx context.Context) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if err := m.ensureBuiltinMigrations(); err != nil {
+		return err
 	}
 
 	// Get applied migrations (may be empty if schema_migrations doesn't exist yet)
@@ -282,14 +270,8 @@ func (m *migratorImplementation) Down(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Automatically add builtin migrations if not already added
-	if !m.hasBuiltinMigrations() {
-		builtinMigrations := GetBuiltinMigrationsWithFormat(m.tableName, m.namingFormat)
-		for _, mig := range builtinMigrations {
-			if err := m.addMigrationInternal(mig); err != nil {
-				return fmt.Errorf("failed to add builtin migrations: %w", err)
-			}
-		}
+	if err := m.ensureBuiltinMigrations(); err != nil {
+		return err
 	}
 
 	// Get applied migrations

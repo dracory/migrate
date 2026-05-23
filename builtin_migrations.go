@@ -15,14 +15,7 @@ type createSchemaMigrationsTable struct {
 	namingFormat NamingFormat
 }
 
-func NewCreateSchemaMigrationsTable(tableName string) MigrationInterface {
-	return &createSchemaMigrationsTable{
-		tableName:    tableName,
-		namingFormat: NamingFormatHHMM,
-	}
-}
-
-func NewCreateSchemaMigrationsTableWithFormat(tableName string, format NamingFormat) MigrationInterface {
+func NewCreateSchemaMigrationsTable(tableName string, format NamingFormat) MigrationInterface {
 	return &createSchemaMigrationsTable{
 		tableName:    tableName,
 		namingFormat: format,
@@ -94,16 +87,9 @@ func (m *createSchemaMigrationsTable) Down(ctx context.Context, tx *sql.Tx) erro
 	return err
 }
 
-// GetBuiltinMigrations returns the built-in migrations that must always run first
-func GetBuiltinMigrations(tableName string) []MigrationInterface {
+// GetBuiltinMigrations returns the built-in migrations with the specified naming format
+func GetBuiltinMigrations(tableName string, format NamingFormat) []MigrationInterface {
 	return []MigrationInterface{
-		NewCreateSchemaMigrationsTable(tableName),
-	}
-}
-
-// GetBuiltinMigrationsWithFormat returns the built-in migrations with the specified naming format
-func GetBuiltinMigrationsWithFormat(tableName string, format NamingFormat) []MigrationInterface {
-	return []MigrationInterface{
-		NewCreateSchemaMigrationsTableWithFormat(tableName, format),
+		NewCreateSchemaMigrationsTable(tableName, format),
 	}
 }
