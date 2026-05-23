@@ -1,4 +1,4 @@
-package migrate
+package migrate_test
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+
+	"github.com/dracory/migrate"
 
 	_ "modernc.org/sqlite"
 )
@@ -23,7 +25,7 @@ func TestNew_CreatesMigratorWithDefaults(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	m, err := New(db, nil)
+	m, err := migrate.New(db, nil)
 	if err != nil {
 		t.Fatalf("Failed to create migrator: %v", err)
 	}
@@ -36,7 +38,7 @@ func TestNew_CreatesMigratorWithCustomTableName(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	m, err := New(db, &Options{MigrationTableName: "custom_migrations"})
+	m, err := migrate.New(db, &migrate.Options{MigrationTableName: "custom_migrations"})
 	if err != nil {
 		t.Fatalf("Failed to create migrator: %v", err)
 	}
@@ -50,7 +52,7 @@ func TestNew_CreatesMigratorWithCustomLogger(t *testing.T) {
 	defer db.Close()
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	m, err := New(db, &Options{Logger: logger})
+	m, err := migrate.New(db, &migrate.Options{Logger: logger})
 	if err != nil {
 		t.Fatalf("Failed to create migrator: %v", err)
 	}
@@ -63,7 +65,7 @@ func TestNew_CreatesMigratorWithNilOptions(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	m, err := New(db, nil)
+	m, err := migrate.New(db, nil)
 	if err != nil {
 		t.Fatalf("Failed to create migrator: %v", err)
 	}
@@ -76,12 +78,12 @@ func TestNew_RejectsInvalidMigrationIDFormat(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	m, err := New(db, nil)
+	m, err := migrate.New(db, nil)
 	if err != nil {
 		t.Fatalf("Failed to create migrator: %v", err)
 	}
 
-	invalidMigration := &mockMigration{
+	invalidMigration := &testMigration{
 		id:          "invalid_format",
 		description: "Invalid ID",
 		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
@@ -102,7 +104,7 @@ func TestNew_ReturnsErrorOnInvalidTableNameWithSpecialCharacters(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	_, err := New(db, &Options{MigrationTableName: "invalid-table-name"})
+	_, err := migrate.New(db, &migrate.Options{MigrationTableName: "invalid-table-name"})
 	if err == nil {
 		t.Error("Expected error for invalid table name with special characters")
 	}
@@ -113,7 +115,7 @@ func TestNew_ReturnsErrorOnTableNameTooLong(t *testing.T) {
 	defer db.Close()
 
 	longName := strings.Repeat("a", 65)
-	_, err := New(db, &Options{MigrationTableName: longName})
+	_, err := migrate.New(db, &migrate.Options{MigrationTableName: longName})
 	if err == nil {
 		t.Error("Expected error for table name too long")
 	}
@@ -123,7 +125,7 @@ func TestNew_ReturnsErrorOnTableNameWithSpaces(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	_, err := New(db, &Options{MigrationTableName: "table name"})
+	_, err := migrate.New(db, &migrate.Options{MigrationTableName: "table name"})
 	if err == nil {
 		t.Error("Expected error for table name with spaces")
 	}

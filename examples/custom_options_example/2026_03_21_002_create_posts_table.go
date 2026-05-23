@@ -1,4 +1,4 @@
-package main
+package custom_options_example
 
 import (
 	"context"

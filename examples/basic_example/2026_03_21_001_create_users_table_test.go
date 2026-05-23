@@ -1,4 +1,4 @@
-package main
+package basic_example_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/dracory/migrate"
+	"github.com/dracory/migrate/examples/basic_example"
 	_ "modernc.org/sqlite"
 )
 
@@ -17,21 +18,9 @@ func TestCreateUsersTable(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Create migrator
-	migrator, err := migrate.New(db, nil)
-	if err != nil {
-		t.Fatalf("Failed to create migrator: %v", err)
-	}
-
-	// Builtin migrations will be added automatically on first Up() call
-
-	// Add migration
-	migration := &CreateUsersTable{}
-	migrator.AddMigration(migration)
-
 	// Test Up migration
 	t.Run("Up", func(t *testing.T) {
-		err := migrator.Up(context.Background())
+		err := basic_example.RunMigrations(db)
 		if err != nil {
 			t.Fatalf("Migration Up failed: %v", err)
 		}
@@ -46,7 +35,12 @@ func TestCreateUsersTable(t *testing.T) {
 
 	// Test Down migration
 	t.Run("Down", func(t *testing.T) {
-		err := migrator.Down(context.Background())
+		migrator, err := migrate.New(db, nil)
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
+
+		err = migrator.Down(context.TODO())
 		if err != nil {
 			t.Fatalf("Migration Down failed: %v", err)
 		}

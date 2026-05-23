@@ -13,6 +13,14 @@ import (
 	carbon "github.com/dromara/carbon/v2"
 )
 
+// migration represents a single database migration (internal use only)
+type migration struct {
+	ID          string
+	Description string
+	Up          func(context.Context, *sql.Tx) error
+	Down        func(context.Context, *sql.Tx) error
+}
+
 // migratorImplementation handles database migrations
 type migratorImplementation struct {
 	db           *sql.DB
@@ -41,7 +49,7 @@ func (m *migratorImplementation) addMigrationInternal(mig MigrationInterface) er
 	}
 
 	// Validate migration ID format based on naming format option
-	if err := IsValidMigrationID(mig.ID(), m.namingFormat); err != nil {
+	if err := ValidateMigrationID(mig.ID(), m.namingFormat); err != nil {
 		return fmt.Errorf("invalid migration ID: %w", err)
 	}
 

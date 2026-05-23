@@ -130,11 +130,11 @@ func validateDescription(parts []string) error {
 	return nil
 }
 
-// IsValidMigrationID validates that the migration ID follows the specified format
+// ValidateMigrationID validates that the migration ID follows the specified format
 // Supported formats:
 //   - YYYY_MM_DD_HHMM_description (for HHMM format)
 //   - YYYY_MM_DD_NNN_description (for NNN format)
-func IsValidMigrationID(id string, format NamingFormat) error {
+func ValidateMigrationID(id string, format NamingFormat) error {
 	if len(id) > 255 {
 		return fmt.Errorf("migration ID too long (max 255 characters)")
 	}

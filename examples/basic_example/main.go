@@ -1,4 +1,4 @@
-package main
+package basic_example
 
 import (
 	"context"
@@ -11,6 +11,22 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+func RunMigrations(db *sql.DB) error {
+	migrator, err := migrate.New(db, nil)
+	if err != nil {
+		return err
+	}
+
+	if err := migrator.AddMigration(&CreateUsersTable{}); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	return migrator.Up(ctx)
+}
+
 func main() {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
@@ -18,19 +34,7 @@ func main() {
 	}
 	defer db.Close()
 
-	migrator, err := migrate.New(db, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err := migrator.AddMigration(&CreateUsersTable{}); err != nil {
-		log.Fatal(err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := migrator.Up(ctx); err != nil {
+	if err := RunMigrations(db); err != nil {
 		log.Fatal(err)
 	}
 

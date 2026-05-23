@@ -1,11 +1,10 @@
-package main
+package custom_options_example_test
 
 import (
-	"context"
 	"database/sql"
 	"testing"
 
-	"github.com/dracory/migrate"
+	"github.com/dracory/migrate/examples/custom_options_example"
 	_ "modernc.org/sqlite"
 )
 
@@ -17,22 +16,9 @@ func TestCreatePostsTable(t *testing.T) {
 	}
 	defer db.Close()
 
-	// Create migrator with custom options
-	migrator, err := migrate.New(db, &migrate.Options{
-		MigrationTableName: "custom_migrations",
-		Logger:             nil, // Disable logging for tests
-	})
-	if err != nil {
-		t.Fatalf("Failed to create migrator: %v", err)
-	}
-
-	// Add migration
-	migration := &CreatePostsTable{}
-	migrator.AddMigration(migration)
-
 	// Test Up migration
 	t.Run("Up", func(t *testing.T) {
-		err := migrator.Up(context.Background())
+		err := custom_options_example.RunMigrations(db)
 		if err != nil {
 			t.Fatalf("Migration Up failed: %v", err)
 		}
@@ -53,7 +39,7 @@ func TestCreatePostsTable(t *testing.T) {
 
 	// Test Down migration
 	t.Run("Down", func(t *testing.T) {
-		err := migrator.Down(context.Background())
+		err := custom_options_example.RollbackMigrations(db)
 		if err != nil {
 			t.Fatalf("Migration Down failed: %v", err)
 		}
