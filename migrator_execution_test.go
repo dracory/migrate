@@ -23,13 +23,16 @@ func TestUp(t *testing.T) {
 			t.Fatalf("Failed to create migrations table: %v", err)
 		}
 
-		m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		m, err := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 
 		executionOrder := []string{}
 
 		migrations := []MigrationInterface{
 			&mockMigration{
-				id:          "2026_03_21_003_third",
+				id:          "2026_03_21_0003_third",
 				description: "Third migration",
 				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "third")
@@ -38,7 +41,7 @@ func TestUp(t *testing.T) {
 				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
-				id:          "2026_03_21_001_first",
+				id:          "2026_03_21_0001_first",
 				description: "First migration",
 				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "first")
@@ -47,7 +50,7 @@ func TestUp(t *testing.T) {
 				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
-				id:          "2026_03_21_002_second",
+				id:          "2026_03_21_0002_second",
 				description: "Second migration",
 				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "second")
@@ -86,7 +89,7 @@ func TestUp(t *testing.T) {
 		querySQL, params, err := sb.NewBuilder(dialect).
 			Table(DefaultTableName).
 			Insert(map[string]string{
-				ColumnID:          "2026_03_21_001_first",
+				ColumnID:          "2026_03_21_0001_first",
 				ColumnBatch:       "20260321120000",
 				ColumnDescription: "First migration",
 				ColumnStartedAt:   carbon.Now(carbon.UTC).ToDateTimeString(),
@@ -102,13 +105,16 @@ func TestUp(t *testing.T) {
 			t.Fatalf("Failed to insert test migration: %v", err)
 		}
 
-		m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		m, err := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 
 		executionOrder := []string{}
 
 		migrations := []MigrationInterface{
 			&mockMigration{
-				id:          "2026_03_21_001_first",
+				id:          "2026_03_21_0001_first",
 				description: "First migration",
 				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "first")
@@ -117,7 +123,7 @@ func TestUp(t *testing.T) {
 				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
-				id:          "2026_03_21_002_second",
+				id:          "2026_03_21_0002_second",
 				description: "Second migration",
 				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "second")
@@ -152,13 +158,16 @@ func TestUp(t *testing.T) {
 			t.Fatalf("Failed to create migrations table: %v", err)
 		}
 
-		m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		m, err := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 
 		executionOrder := []string{}
 
 		migrations := []MigrationInterface{
 			&mockMigration{
-				id:          "2026_03_21_001_first",
+				id:          "2026_03_21_0001_first",
 				description: "First migration",
 				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "first")
@@ -167,7 +176,7 @@ func TestUp(t *testing.T) {
 				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
-				id:          "2026_03_21_002_second",
+				id:          "2026_03_21_0002_second",
 				description: "Second migration (fails)",
 				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "second")
@@ -176,7 +185,7 @@ func TestUp(t *testing.T) {
 				downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
-				id:          "2026_03_21_003_third",
+				id:          "2026_03_21_0003_third",
 				description: "Third migration",
 				upFunc: func(ctx context.Context, tx *sql.Tx) error {
 					executionOrder = append(executionOrder, "third")
@@ -190,7 +199,7 @@ func TestUp(t *testing.T) {
 			t.Fatalf("Failed to add migrations: %v", err)
 		}
 
-		err := m.Up(context.Background())
+		err = m.Up(context.Background())
 		if err == nil {
 			t.Error("Expected error from failing migration")
 		}
@@ -200,7 +209,7 @@ func TestUp(t *testing.T) {
 		}
 
 		var count int
-		err = db.QueryRow("SELECT COUNT(*) FROM "+DefaultTableName+" WHERE id = ?", "2026_03_21_001_first").Scan(&count)
+		err = db.QueryRow("SELECT COUNT(*) FROM "+DefaultTableName+" WHERE id = ?", "2026_03_21_0001_first").Scan(&count)
 		if err != nil {
 			t.Fatalf("Failed to query migrations table: %v", err)
 		}
@@ -208,7 +217,7 @@ func TestUp(t *testing.T) {
 			t.Error("Expected first migration to be recorded")
 		}
 
-		err = db.QueryRow("SELECT COUNT(*) FROM "+DefaultTableName+" WHERE id = ?", "2026_03_21_002_second").Scan(&count)
+		err = db.QueryRow("SELECT COUNT(*) FROM "+DefaultTableName+" WHERE id = ?", "2026_03_21_0002_second").Scan(&count)
 		if err != nil {
 			t.Fatalf("Failed to query migrations table: %v", err)
 		}
@@ -225,9 +234,12 @@ func TestUp(t *testing.T) {
 			t.Fatalf("Failed to create migrations table: %v", err)
 		}
 
-		m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		m, err := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 
-		err := m.Up(context.Background())
+		err = m.Up(context.Background())
 		if err != nil {
 			t.Errorf("Expected no error for empty migration list, got %v", err)
 		}
@@ -243,17 +255,20 @@ func TestDown(t *testing.T) {
 			t.Fatalf("Failed to create migrations table: %v", err)
 		}
 
-		m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		m, err := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 
 		migrations := []MigrationInterface{
 			&mockMigration{
-				id:          "2026_03_21_001_first",
+				id:          "2026_03_21_0001_first",
 				description: "First migration",
 				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
 				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
-				id:          "2026_03_21_002_second",
+				id:          "2026_03_21_0002_second",
 				description: "Second migration",
 				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
 				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
@@ -273,7 +288,7 @@ func TestDown(t *testing.T) {
 		}
 
 		var count int
-		err := db.QueryRow("SELECT COUNT(*) FROM "+DefaultTableName+" WHERE id = ?", "2026_03_21_002_second").Scan(&count)
+		err = db.QueryRow("SELECT COUNT(*) FROM "+DefaultTableName+" WHERE id = ?", "2026_03_21_0002_second").Scan(&count)
 		if err != nil {
 			t.Fatalf("Failed to query migrations table: %v", err)
 		}
@@ -281,7 +296,7 @@ func TestDown(t *testing.T) {
 			t.Error("Expected second migration to be rolled back")
 		}
 
-		err = db.QueryRow("SELECT COUNT(*) FROM "+DefaultTableName+" WHERE id = ?", "2026_03_21_001_first").Scan(&count)
+		err = db.QueryRow("SELECT COUNT(*) FROM "+DefaultTableName+" WHERE id = ?", "2026_03_21_0001_first").Scan(&count)
 		if err != nil {
 			t.Fatalf("Failed to query migrations table: %v", err)
 		}
@@ -298,9 +313,12 @@ func TestDown(t *testing.T) {
 			t.Fatalf("Failed to create migrations table: %v", err)
 		}
 
-		m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		m, err := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 
-		err := m.Down(context.Background())
+		err = m.Down(context.Background())
 		if err != nil {
 			t.Errorf("Expected no error when no migrations to rollback, got %v", err)
 		}
@@ -314,10 +332,13 @@ func TestDown(t *testing.T) {
 			t.Fatalf("Failed to create migrations table: %v", err)
 		}
 
-		m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		m, err := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 
 		migration := &mockMigration{
-			id:          "2026_03_21_001_test",
+			id:          "2026_03_21_0001_test",
 			description: "Test migration",
 			upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
 			downFunc: func(ctx context.Context, tx *sql.Tx) error {
@@ -333,7 +354,7 @@ func TestDown(t *testing.T) {
 			t.Fatalf("Failed to run migration: %v", err)
 		}
 
-		err := m.Down(context.Background())
+		err = m.Down(context.Background())
 		if err == nil {
 			t.Error("Expected error from failing rollback")
 		}
@@ -349,17 +370,20 @@ func TestStatus(t *testing.T) {
 			t.Fatalf("Failed to create migrations table: %v", err)
 		}
 
-		m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		m, err := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 
 		migrations := []MigrationInterface{
 			&mockMigration{
-				id:          "2026_03_21_001_first",
+				id:          "2026_03_21_0001_first",
 				description: "First migration",
 				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
 				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 			},
 			&mockMigration{
-				id:          "2026_03_21_002_second",
+				id:          "2026_03_21_0002_second",
 				description: "Second migration",
 				upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
 				downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
@@ -374,7 +398,7 @@ func TestStatus(t *testing.T) {
 		querySQL, params, err := sb.NewBuilder(dialect).
 			Table(DefaultTableName).
 			Insert(map[string]string{
-				ColumnID:          "2026_03_21_001_first",
+				ColumnID:          "2026_03_21_0001_first",
 				ColumnBatch:       "20260321120000",
 				ColumnDescription: "First migration",
 				ColumnStartedAt:   carbon.Now(carbon.UTC).ToDateTimeString(),

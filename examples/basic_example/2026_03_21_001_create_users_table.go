@@ -11,7 +11,7 @@ import (
 type CreateUsersTable struct{}
 
 func (m *CreateUsersTable) ID() string {
-	return "2026_03_21_001_create_users_table"
+	return "2026_03_21_0001_create_users_table"
 }
 
 func (m *CreateUsersTable) Description() string {

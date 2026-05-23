@@ -11,7 +11,7 @@ import (
 type CreatePostsTable struct{}
 
 func (m *CreatePostsTable) ID() string {
-	return "2026_03_21_002_create_posts_table"
+	return "2026_03_21_0002_create_posts_table"
 }
 
 func (m *CreatePostsTable) Description() string {

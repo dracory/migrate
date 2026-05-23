@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/dracory/migrate"
 	_ "modernc.org/sqlite"
@@ -17,13 +18,19 @@ func main() {
 	}
 	defer db.Close()
 
-	migrator := migrate.New(db, nil)
+	migrator, err := migrate.New(db, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if err := migrator.AddMigration(&CreateUsersTable{}); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := migrator.Up(context.Background()); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := migrator.Up(ctx); err != nil {
 		log.Fatal(err)
 	}
 

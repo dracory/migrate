@@ -19,7 +19,10 @@
 //	}
 //	defer db.Close()
 //
-//	migrator := migrate.New(db, nil)
+//	migrator, err := migrate.New(db, nil)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
 //
 //	if err := migrator.AddMigration(&YourMigration{}); err != nil {
 //	    log.Fatal(err)
@@ -35,8 +38,8 @@
 //
 // Migration ID Format:
 //
-// Migrations must have an ID in the format: YYYY_MM_DD_description
-// For example: 2026_03_21_create_users_table
+// Migrations must have an ID in the format: YYYY_MM_DD_HHMM_description
+// For example: 2026_03_21_1200_create_users_table
 //
 // The date part must be a valid calendar date (e.g., February 30 will be rejected).
 package migrate

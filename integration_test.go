@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/dracory/database"
+	"github.com/dracory/sb"
 	_ "modernc.org/sqlite"
 )
 
@@ -14,11 +16,14 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	m, err := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
 
 	userMigrations := []MigrationInterface{
 		&mockMigration{
-			id:          "2026_03_21_001_create_users",
+			id:          "2026_03_21_0001_create_users",
 			description: "Create users table",
 			upFunc: func(ctx context.Context, tx *sql.Tx) error {
 				_, err := tx.Exec(`CREATE TABLE users (
@@ -34,7 +39,7 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 			},
 		},
 		&mockMigration{
-			id:          "2026_03_21_002_create_posts",
+			id:          "2026_03_21_0002_create_posts",
 			description: "Create posts table",
 			upFunc: func(ctx context.Context, tx *sql.Tx) error {
 				_, err := tx.Exec(`CREATE TABLE posts (
@@ -62,7 +67,14 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 		}
 
 		var count int
-		err = db.QueryRow("SELECT COUNT(*) FROM " + DefaultTableName).Scan(&count)
+		dialect := database.DatabaseType(db)
+		countSQL, countParams, err := sb.NewBuilder(dialect).
+			Table(DefaultTableName).
+			Select([]string{"COUNT(*)"})
+		if err != nil {
+			t.Fatalf("Failed to build count SQL: %v", err)
+		}
+		err = db.QueryRow(countSQL, countParams...).Scan(&count)
 		if err != nil {
 			t.Fatalf("Failed to query migrations table: %v", err)
 		}
@@ -89,7 +101,14 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 		}
 
 		var count int
-		err = db.QueryRow("SELECT COUNT(*) FROM " + DefaultTableName).Scan(&count)
+		dialect := database.DatabaseType(db)
+		countSQL, countParams, err := sb.NewBuilder(dialect).
+			Table(DefaultTableName).
+			Select([]string{"COUNT(*)"})
+		if err != nil {
+			t.Fatalf("Failed to build count SQL: %v", err)
+		}
+		err = db.QueryRow(countSQL, countParams...).Scan(&count)
 		if err != nil {
 			t.Fatalf("Failed to query migrations table: %v", err)
 		}
@@ -105,7 +124,14 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 		}
 
 		var count int
-		err = db.QueryRow("SELECT COUNT(*) FROM " + DefaultTableName).Scan(&count)
+		dialect := database.DatabaseType(db)
+		countSQL, countParams, err := sb.NewBuilder(dialect).
+			Table(DefaultTableName).
+			Select([]string{"COUNT(*)"})
+		if err != nil {
+			t.Fatalf("Failed to build count SQL: %v", err)
+		}
+		err = db.QueryRow(countSQL, countParams...).Scan(&count)
 		if err != nil {
 			t.Fatalf("Failed to query migrations table: %v", err)
 		}
@@ -119,7 +145,10 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 		db2 := setupTestDB(t)
 		defer db2.Close()
 
-		m2 := New(db2, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		m2, err := New(db2, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 		if err := m2.AddMigrations(userMigrations); err != nil {
 			t.Fatalf("Failed to add user migrations: %v", err)
 		}
@@ -135,13 +164,20 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 		}
 
 		// Re-run
-		err := m2.Up(context.Background())
+		err = m2.Up(context.Background())
 		if err != nil {
 			t.Fatalf("Failed to re-run migration: %v", err)
 		}
 
 		var count int
-		err = db2.QueryRow("SELECT COUNT(*) FROM " + DefaultTableName).Scan(&count)
+		dialect := database.DatabaseType(db2)
+		countSQL, countParams, err := sb.NewBuilder(dialect).
+			Table(DefaultTableName).
+			Select([]string{"COUNT(*)"})
+		if err != nil {
+			t.Fatalf("Failed to build count SQL: %v", err)
+		}
+		err = db2.QueryRow(countSQL, countParams...).Scan(&count)
 		if err != nil {
 			t.Fatalf("Failed to query migrations table: %v", err)
 		}
@@ -155,13 +191,16 @@ func TestIntegrationMigrationOrdering(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	m, err := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
 
 	executionOrder := []string{}
 
 	migrations := []MigrationInterface{
 		&mockMigration{
-			id:          "2026_03_22_003_third",
+			id:          "2026_03_22_0003_third",
 			description: "Third",
 			upFunc: func(ctx context.Context, tx *sql.Tx) error {
 				executionOrder = append(executionOrder, "third")
@@ -170,7 +209,7 @@ func TestIntegrationMigrationOrdering(t *testing.T) {
 			downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 		},
 		&mockMigration{
-			id:          "2026_03_21_001_first",
+			id:          "2026_03_21_0001_first",
 			description: "First",
 			upFunc: func(ctx context.Context, tx *sql.Tx) error {
 				executionOrder = append(executionOrder, "first")
@@ -179,7 +218,7 @@ func TestIntegrationMigrationOrdering(t *testing.T) {
 			downFunc: func(ctx context.Context, tx *sql.Tx) error { return nil },
 		},
 		&mockMigration{
-			id:          "2026_03_21_002_second",
+			id:          "2026_03_21_0002_second",
 			description: "Second",
 			upFunc: func(ctx context.Context, tx *sql.Tx) error {
 				executionOrder = append(executionOrder, "second")
@@ -193,7 +232,7 @@ func TestIntegrationMigrationOrdering(t *testing.T) {
 		t.Fatalf("Failed to add migrations: %v", err)
 	}
 
-	err := m.Up(context.Background())
+	err = m.Up(context.Background())
 	if err != nil {
 		t.Fatalf("Failed to run migrations: %v", err)
 	}
@@ -227,13 +266,16 @@ func TestIntegrationWithCustomMigrationTableName(t *testing.T) {
 	defer db.Close()
 
 	customMigrationTableName := "custom_migrations_table"
-	m := New(db, &Options{
+	m, err := New(db, &Options{
 		MigrationTableName: customMigrationTableName,
 		Logger:             slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
 
 	migration := &mockMigration{
-		id:          "2026_03_21_001_test",
+		id:          "2026_03_21_0001_test",
 		description: "Test",
 		upFunc:      func(ctx context.Context, tx *sql.Tx) error { return nil },
 		downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
@@ -248,8 +290,14 @@ func TestIntegrationWithCustomMigrationTableName(t *testing.T) {
 	}
 
 	var count int
-	var err error
-	err = db.QueryRow("SELECT COUNT(*) FROM " + customMigrationTableName).Scan(&count)
+	dialect := database.DatabaseType(db)
+	countSQL, countParams, err := sb.NewBuilder(dialect).
+		Table(customMigrationTableName).
+		Select([]string{"COUNT(*)"})
+	if err != nil {
+		t.Fatalf("Failed to build count SQL: %v", err)
+	}
+	err = db.QueryRow(countSQL, countParams...).Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to query custom table: %v", err)
 	}
@@ -262,10 +310,13 @@ func TestIntegrationTransactionRollback(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	m := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	m, err := New(db, &Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
 
 	migration1 := &mockMigration{
-		id:          "2026_03_21_001_create_table",
+		id:          "2026_03_21_0001_create_table",
 		description: "Create test table",
 		upFunc: func(ctx context.Context, tx *sql.Tx) error {
 			_, err := tx.Exec("CREATE TABLE test_rollback (id INTEGER PRIMARY KEY)")
@@ -275,7 +326,7 @@ func TestIntegrationTransactionRollback(t *testing.T) {
 	}
 
 	migration2 := &mockMigration{
-		id:          "2026_03_21_002_fail",
+		id:          "2026_03_21_0002_fail",
 		description: "Failing migration",
 		upFunc: func(ctx context.Context, tx *sql.Tx) error {
 			_, err := tx.Exec("INSERT INTO test_rollback (id) VALUES (1)")
@@ -291,13 +342,25 @@ func TestIntegrationTransactionRollback(t *testing.T) {
 		t.Fatalf("Failed to add migrations: %v", err)
 	}
 
-	err := m.Up(context.Background())
+	err = m.Up(context.Background())
 	if err == nil {
 		t.Error("Expected error from failing migration")
 	}
 
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM "+DefaultTableName+" WHERE id = ?", migration2.ID()).Scan(&count)
+	dialect := database.DatabaseType(db)
+	countSQL, countParams, err := sb.NewBuilder(dialect).
+		Table(DefaultTableName).
+		Where(&sb.Where{
+			Column:   ColumnID,
+			Operator: "=",
+			Value:    migration2.ID(),
+		}).
+		Select([]string{"COUNT(*)"})
+	if err != nil {
+		t.Fatalf("Failed to build count SQL: %v", err)
+	}
+	err = db.QueryRow(countSQL, countParams...).Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to query migrations table: %v", err)
 	}

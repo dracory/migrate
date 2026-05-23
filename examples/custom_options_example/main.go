@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/dracory/migrate"
 	_ "modernc.org/sqlite"
@@ -18,10 +19,13 @@ func main() {
 	defer db.Close()
 
 	// Example with custom options
-	migrator := migrate.New(db, &migrate.Options{
+	migrator, err := migrate.New(db, &migrate.Options{
 		MigrationTableName: "custom_migrations", // Custom table name
 		Logger:             nil,                 // Disable logging
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Printf("Migrator created: %T\n", migrator)
 	fmt.Printf("Using custom table name: custom_migrations\n")
@@ -35,14 +39,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := migrator.Up(context.Background()); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := migrator.Up(ctx); err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println("Custom migration completed successfully")
 
 	// Demonstrate rollback
-	if err := migrator.Down(context.Background()); err != nil {
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel2()
+
+	if err := migrator.Down(ctx2); err != nil {
 		log.Fatal(err)
 	}
 

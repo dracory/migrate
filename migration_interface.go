@@ -8,7 +8,7 @@ import (
 // MigrationInterface defines the contract that all migrations must implement
 type MigrationInterface interface {
 	// ID returns the unique identifier for this migration
-	// Format: YYYYMMDD_NNN (e.g., 20260321_001)
+	// Format: YYYY_MM_DD_HHMM_description (e.g., 2026_03_21_1200_create_users_table)
 	ID() string
 
 	// Description returns a human-readable description for the migration

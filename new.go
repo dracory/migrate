@@ -18,8 +18,10 @@ type Options struct {
 	Logger *slog.Logger
 }
 
-// validateTableName ensures the table name contains only safe characters
-func validateTableName(name string) error {
+// ValidateTableName ensures the table name contains only safe characters
+// This function is exported to allow external validation of table names
+// before creating a migrator instance.
+func ValidateTableName(name string) error {
 	if len(name) == 0 {
 		return fmt.Errorf("table name cannot be empty")
 	}
@@ -30,30 +32,35 @@ func validateTableName(name string) error {
 	// First character must be a letter or underscore (not a digit)
 	firstRune := rune(name[0])
 	if !unicode.IsLetter(firstRune) && firstRune != '_' {
-		return fmt.Errorf("table name must start with a letter or underscore, not '%c'", firstRune)
+		return fmt.Errorf("table name must start with a letter or underscore")
 	}
 
-	for i, r := range name {
+	for _, r := range name {
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' {
-			return fmt.Errorf("table name contains invalid character '%c' at position %d (only alphanumeric and underscore allowed)", r, i)
+			return fmt.Errorf("table name contains invalid characters (only alphanumeric and underscore allowed)")
 		}
 	}
 	return nil
 }
 
+// validateTableName is the internal version that calls the exported ValidateTableName
+func validateTableName(name string) error {
+	return ValidateTableName(name)
+}
+
 // New creates a new migrator instance
-func New(db *sql.DB, opts *Options) MigratorInterface {
+func New(db *sql.DB, opts *Options) (MigratorInterface, error) {
 	if opts == nil {
 		opts = &Options{}
 	}
 
 	tableName := opts.MigrationTableName
 	if tableName == "" {
-		tableName = DefaultTableName
+		tableName = GetDefaultTableName()
 	}
 
 	if err := validateTableName(tableName); err != nil {
-		panic(fmt.Sprintf("invalid migration table name: %v", err))
+		return nil, fmt.Errorf("invalid migration table name: %w", err)
 	}
 
 	logger := opts.Logger
@@ -64,5 +71,5 @@ func New(db *sql.DB, opts *Options) MigratorInterface {
 		migrations: make([]*migration, 0),
 		tableName:  tableName,
 		logger:     logger,
-	}
+	}, nil
 }

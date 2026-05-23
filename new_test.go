@@ -24,14 +24,20 @@ func TestNew(t *testing.T) {
 	defer db.Close()
 
 	t.Run("creates migrator with defaults", func(t *testing.T) {
-		m := New(db, nil)
+		m, err := New(db, nil)
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 		if m == nil {
 			t.Fatal("Expected migrator to be created")
 		}
 	})
 
 	t.Run("creates migrator with custom table name", func(t *testing.T) {
-		m := New(db, &Options{MigrationTableName: "custom_migrations"})
+		m, err := New(db, &Options{MigrationTableName: "custom_migrations"})
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 		if m == nil {
 			t.Fatal("Expected migrator to be created")
 		}
@@ -39,21 +45,30 @@ func TestNew(t *testing.T) {
 
 	t.Run("creates migrator with custom logger", func(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		m := New(db, &Options{Logger: logger})
+		m, err := New(db, &Options{Logger: logger})
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 		if m == nil {
 			t.Fatal("Expected migrator to be created")
 		}
 	})
 
 	t.Run("creates migrator with nil options", func(t *testing.T) {
-		m := New(db, nil)
+		m, err := New(db, nil)
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 		if m == nil {
 			t.Fatal("Expected migrator to be created")
 		}
 	})
 
 	t.Run("rejects invalid migration ID format", func(t *testing.T) {
-		m := New(db, nil)
+		m, err := New(db, nil)
+		if err != nil {
+			t.Fatalf("Failed to create migrator: %v", err)
+		}
 
 		// Create a migration with invalid ID format
 		invalidMigration := &mockMigration{
@@ -63,46 +78,37 @@ func TestNew(t *testing.T) {
 			downFunc:    func(ctx context.Context, tx *sql.Tx) error { return nil },
 		}
 
-		err := m.AddMigration(invalidMigration)
-		if err == nil {
+		addErr := m.AddMigration(invalidMigration)
+		if addErr == nil {
 			t.Error("Expected error for invalid migration ID format")
 		}
 
-		expectedError := "migration ID must follow format YYYY_MM_DD_description"
-		if !strings.Contains(err.Error(), expectedError) {
-			t.Errorf("Expected error containing '%s', got: %v", expectedError, err)
+		expectedError := "migration ID must follow format YYYY_MM_DD_HHMM_description"
+		if !strings.Contains(addErr.Error(), expectedError) {
+			t.Errorf("Expected error containing '%s', got: %v", expectedError, addErr)
 		}
 	})
 
-	t.Run("panics on invalid table name with special characters", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Expected panic for invalid table name with special characters")
-			}
-		}()
-
-		New(db, &Options{MigrationTableName: "invalid-table-name"})
+	t.Run("returns error on invalid table name with special characters", func(t *testing.T) {
+		_, err := New(db, &Options{MigrationTableName: "invalid-table-name"})
+		if err == nil {
+			t.Error("Expected error for invalid table name with special characters")
+		}
 	})
 
-	t.Run("panics on table name too long", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Expected panic for table name too long")
-			}
-		}()
-
+	t.Run("returns error on table name too long", func(t *testing.T) {
 		longName := strings.Repeat("a", 65)
-		New(db, &Options{MigrationTableName: longName})
+		_, err := New(db, &Options{MigrationTableName: longName})
+		if err == nil {
+			t.Error("Expected error for table name too long")
+		}
 	})
 
-	t.Run("panics on table name with spaces", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Expected panic for table name with spaces")
-			}
-		}()
-
-		New(db, &Options{MigrationTableName: "table name"})
+	t.Run("returns error on table name with spaces", func(t *testing.T) {
+		_, err := New(db, &Options{MigrationTableName: "table name"})
+		if err == nil {
+			t.Error("Expected error for table name with spaces")
+		}
 	})
 }
 

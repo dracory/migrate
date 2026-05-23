@@ -18,10 +18,13 @@ func TestCreatePostsTable(t *testing.T) {
 	defer db.Close()
 
 	// Create migrator with custom options
-	migrator := migrate.New(db, &migrate.Options{
+	migrator, err := migrate.New(db, &migrate.Options{
 		MigrationTableName: "custom_migrations",
 		Logger:             nil, // Disable logging for tests
 	})
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
 
 	// Add migration
 	migration := &CreatePostsTable{}

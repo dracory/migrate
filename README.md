@@ -40,7 +40,7 @@ import (
 type CreateUsersTable struct{}
 
 func (m *CreateUsersTable) ID() string {
-    return "2026_03_21_001_create_users_table"
+    return "2026_03_21_0001_create_users_table"
 }
 
 func (m *CreateUsersTable) Description() string {
@@ -111,7 +111,10 @@ func main() {
     defer db.Close()
 
     // Create migrator with options
-    migrator := migrate.New(db, nil)
+    migrator, err := migrate.New(db, nil)
+    if err != nil {
+        log.Fatal(err)
+    }
     
     // Add your migrations (builtin migrations are added automatically)
     if err := migrator.AddMigration(&migrations.CreateUsersTable{}); err != nil {
@@ -153,20 +156,24 @@ The package includes a builtin migration that automatically creates the tracking
 - Runs automatically when you call `Up()` or `Down()` for the first time
 - Respects your custom table name configuration
 - Uses the new schema with performance tracking columns
-- Is always the first migration to run (ID: `2022_01_01_000_create_schema_migrations`)
+- Is always the first migration to run (ID: `2022_01_01_0000_create_schema_migrations`)
 
 ## Migration ID Format
 
-Migration IDs should follow this format for proper ordering:
+Migration IDs follow the format `YYYY_MM_DD_HHMM_description`:
 
 ```
-YYYY_MM_DD_NNN_description
+YYYY - Year
+MM   - Month
+DD   - Day
+HHMM - Hour and minute (24-hour format)
+description - Brief description using underscores
 ```
 
 Examples:
-- `2026_03_21_001_create_users_table`
-- `2026_03_21_002_add_users_email_index`
-- `2026_03_22_001_create_posts_table`
+- `2026_03_21_0900_create_users_table`
+- `2026_03_21_0930_add_users_email_index`
+- `2026_03_22_1400_create_posts_table`
 
 **Important**: Never change a migration ID after it has been applied to any environment.
 
@@ -175,9 +182,12 @@ Examples:
 ### Custom Table Name
 
 ```go
-migrator := migrate.New(db, &migrate.Options{
+migrator, err := migrate.New(db, &migrate.Options{
     MigrationTableName: "custom_migrations",
 })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ### Custom Logger
@@ -185,23 +195,32 @@ migrator := migrate.New(db, &migrate.Options{
 ```go
 import "log/slog"
 
-migrator := migrate.New(db, &migrate.Options{
+migrator, err := migrate.New(db, &migrate.Options{
     Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
 })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ### Disable Logging
 
 ```go
-migrator := migrate.New(db, &migrate.Options{
+migrator, err := migrate.New(db, &migrate.Options{
     Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 })
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ### Default Options
 
 ```go
-migrator := migrate.New(db, nil)  // Uses default table name and slog.Default()
+migrator, err := migrate.New(db, nil)  // Uses default table name, logging disabled
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 ## API Reference
@@ -280,10 +299,10 @@ type MigrationInterface interface {
 Migrations are sorted lexicographically by their ID before execution:
 
 ```
-2022_01_01_000_create_schema_migrations  # Builtin (always first)
-2026_03_21_001_create_users_table        # User migration
-2026_03_21_002_add_users_email_index     # User migration
-2026_03_22_001_create_posts_table        # User migration
+2022_01_01_0000_create_schema_migrations  # Builtin (always first)
+2026_03_21_0900_create_users_table        # User migration
+2026_03_21_0930_add_users_email_index     # User migration
+2026_03_22_1400_create_posts_table        # User migration
 ```
 
 ## Error Handling

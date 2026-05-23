@@ -18,7 +18,10 @@ func TestCreateUsersTable(t *testing.T) {
 	defer db.Close()
 
 	// Create migrator
-	migrator := migrate.New(db, nil)
+	migrator, err := migrate.New(db, nil)
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
 
 	// Builtin migrations will be added automatically on first Up() call
 

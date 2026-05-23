@@ -39,9 +39,9 @@ func (m *migratorImplementation) addMigrationInternal(mig MigrationInterface) er
 		return fmt.Errorf("migration ID cannot be empty")
 	}
 
-	// Validate migration ID format: YYYY_MM_DD_description
+	// Validate migration ID format: YYYY_MM_DD_HHMM_description
 	if !isValidMigrationID(mig.ID()) {
-		return fmt.Errorf("migration ID must follow format YYYY_MM_DD_description, got: %s", mig.ID())
+		return fmt.Errorf("migration ID must follow format YYYY_MM_DD_HHMM_description, got: %s", mig.ID())
 	}
 
 	// Check for duplicate IDs
@@ -104,16 +104,22 @@ func (m *migratorImplementation) getAppliedmigrations(ctx context.Context) (map[
 }
 
 // runmigration executes a migration up or down
-func (m *migratorImplementation) runmigration(ctx context.Context, migration *migration, direction string) error {
+func (m *migratorImplementation) runmigration(ctx context.Context, migration *migration, direction string) (err error) {
 	// Start transaction with context for cancellation
-	tx, err := m.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
+	tx, txErr := m.db.BeginTx(ctx, nil)
+	if txErr != nil {
+		return txErr
 	}
 	defer func() {
-		if err := tx.Rollback(); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			// If there's already an error, wrap it with rollback error
+			if err != nil {
+				err = fmt.Errorf("migration error: %w, rollback error: %v", err, rbErr)
+			} else {
+				err = fmt.Errorf("failed to rollback transaction: %w", rbErr)
+			}
 			if m.logger != nil {
-				m.logger.Warn("Failed to rollback transaction", "error", err)
+				m.logger.Error("Failed to rollback transaction", "error", rbErr)
 			}
 		}
 	}()
