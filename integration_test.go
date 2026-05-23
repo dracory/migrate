@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func TestIntegrationFullMigrationCycle(t *testing.T) {
+func TestIntegrationFullMigrationCycle_RunsAllMigrationsInOrder(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
@@ -59,127 +59,265 @@ func TestIntegrationFullMigrationCycle(t *testing.T) {
 		t.Fatalf("Failed to add user migrations: %v", err)
 	}
 
-	t.Run("runs all migrations in order", func(t *testing.T) {
-		err := m.Up(context.Background())
-		if err != nil {
-			t.Fatalf("Failed to run migrations: %v", err)
-		}
+	err = m.Up(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
 
-		status, err := m.GetStatus(context.Background())
-		if err != nil {
-			t.Fatalf("Failed to get status: %v", err)
-		}
+	status, err := m.GetStatus(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to get status: %v", err)
+	}
 
-		appliedCount := 0
-		for _, s := range status {
-			if s.Applied {
-				appliedCount++
-			}
+	appliedCount := 0
+	for _, s := range status {
+		if s.Applied {
+			appliedCount++
 		}
+	}
 
-		if appliedCount != 3 {
-			t.Errorf("Expected 3 migrations (1 builtin + 2 user), got %d", appliedCount)
-		}
+	if appliedCount != 3 {
+		t.Errorf("Expected 3 migrations (1 builtin + 2 user), got %d", appliedCount)
+	}
 
-		var tableName string
-		err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").Scan(&tableName)
-		if err != nil {
-			t.Fatalf("Users table should exist: %v", err)
-		}
+	var tableName string
+	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").Scan(&tableName)
+	if err != nil {
+		t.Fatalf("Users table should exist: %v", err)
+	}
 
-		err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='posts'").Scan(&tableName)
-		if err != nil {
-			t.Fatalf("Posts table should exist: %v", err)
-		}
-	})
+	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='posts'").Scan(&tableName)
+	if err != nil {
+		t.Fatalf("Posts table should exist: %v", err)
+	}
+}
 
-	t.Run("running Up again does nothing", func(t *testing.T) {
-		err := m.Up(context.Background())
-		if err != nil {
-			t.Fatalf("Failed to run migrations again: %v", err)
-		}
+func TestIntegrationFullMigrationCycle_RunningUpAgainDoesNothing(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
 
-		status, err := m.GetStatus(context.Background())
-		if err != nil {
-			t.Fatalf("Failed to get status: %v", err)
-		}
+	m, err := migrate.New(db, &migrate.Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
 
-		appliedCount := 0
-		for _, s := range status {
-			if s.Applied {
-				appliedCount++
-			}
-		}
+	userMigrations := []migrate.MigrationInterface{
+		&testMigration{
+			id:          "2026_03_21_0001_create_users",
+			description: "Create users table",
+			upFunc: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec(`CREATE TABLE users (
+					id INTEGER PRIMARY KEY,
+					email TEXT NOT NULL UNIQUE,
+					created_at DATETIME NOT NULL
+				)`)
+				return err
+			},
+			downFunc: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec("DROP TABLE users")
+				return err
+			},
+		},
+		&testMigration{
+			id:          "2026_03_21_0002_create_posts",
+			description: "Create posts table",
+			upFunc: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec(`CREATE TABLE posts (
+					id INTEGER PRIMARY KEY,
+					title TEXT NOT NULL,
+					user_id INTEGER NOT NULL
+				)`)
+				return err
+			},
+			downFunc: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec("DROP TABLE posts")
+				return err
+			},
+		},
+	}
 
-		if appliedCount != 3 {
-			t.Errorf("Expected still 3 migrations, got %d", appliedCount)
-		}
-	})
+	if err := m.AddMigrations(userMigrations); err != nil {
+		t.Fatalf("Failed to add user migrations: %v", err)
+	}
 
-	t.Run("rolls back last migration", func(t *testing.T) {
-		err := m.Down(context.Background())
-		if err != nil {
-			t.Fatalf("Failed to rollback: %v", err)
-		}
+	// First run
+	if err := m.Up(context.Background()); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
 
-		status, err := m.GetStatus(context.Background())
-		if err != nil {
-			t.Fatalf("Failed to get status: %v", err)
-		}
+	// Second run - should do nothing
+	err = m.Up(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to run migrations again: %v", err)
+	}
 
-		appliedCount := 0
-		for _, s := range status {
-			if s.Applied {
-				appliedCount++
-			}
-		}
+	status, err := m.GetStatus(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to get status: %v", err)
+	}
 
-		if appliedCount != 2 {
-			t.Errorf("Expected 2 migrations after rollback, got %d", appliedCount)
+	appliedCount := 0
+	for _, s := range status {
+		if s.Applied {
+			appliedCount++
 		}
-	})
+	}
 
-	t.Run("can re-run rolled back migration", func(t *testing.T) {
-		db2 := setupTestDB(t)
-		defer db2.Close()
+	if appliedCount != 3 {
+		t.Errorf("Expected still 3 migrations, got %d", appliedCount)
+	}
+}
 
-		m2, err := migrate.New(db2, &migrate.Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
-		if err != nil {
-			t.Fatalf("Failed to create migrator: %v", err)
-		}
-		if err := m2.AddMigrations(userMigrations); err != nil {
-			t.Fatalf("Failed to add user migrations: %v", err)
-		}
+func TestIntegrationFullMigrationCycle_RollsBackLastMigration(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
 
-		if err := m2.Up(context.Background()); err != nil {
-			t.Fatalf("Failed to run migrations: %v", err)
-		}
+	m, err := migrate.New(db, &migrate.Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
 
-		if err := m2.Down(context.Background()); err != nil {
-			t.Fatalf("Failed to rollback: %v", err)
-		}
+	userMigrations := []migrate.MigrationInterface{
+		&testMigration{
+			id:          "2026_03_21_0001_create_users",
+			description: "Create users table",
+			upFunc: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec(`CREATE TABLE users (
+					id INTEGER PRIMARY KEY,
+					email TEXT NOT NULL UNIQUE,
+					created_at DATETIME NOT NULL
+				)`)
+				return err
+			},
+			downFunc: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec("DROP TABLE users")
+				return err
+			},
+		},
+		&testMigration{
+			id:          "2026_03_21_0002_create_posts",
+			description: "Create posts table",
+			upFunc: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec(`CREATE TABLE posts (
+					id INTEGER PRIMARY KEY,
+					title TEXT NOT NULL,
+					user_id INTEGER NOT NULL
+				)`)
+				return err
+			},
+			downFunc: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec("DROP TABLE posts")
+				return err
+			},
+		},
+	}
 
-		err = m2.Up(context.Background())
-		if err != nil {
-			t.Fatalf("Failed to re-run migration: %v", err)
-		}
+	if err := m.AddMigrations(userMigrations); err != nil {
+		t.Fatalf("Failed to add user migrations: %v", err)
+	}
 
-		status, err := m2.GetStatus(context.Background())
-		if err != nil {
-			t.Fatalf("Failed to get status: %v", err)
-		}
+	if err := m.Up(context.Background()); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
 
-		appliedCount := 0
-		for _, s := range status {
-			if s.Applied {
-				appliedCount++
-			}
-		}
+	err = m.Down(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to rollback: %v", err)
+	}
 
-		if appliedCount != 3 {
-			t.Errorf("Expected 3 migrations after re-run, got %d", appliedCount)
+	status, err := m.GetStatus(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to get status: %v", err)
+	}
+
+	appliedCount := 0
+	for _, s := range status {
+		if s.Applied {
+			appliedCount++
 		}
-	})
+	}
+
+	if appliedCount != 2 {
+		t.Errorf("Expected 2 migrations after rollback, got %d", appliedCount)
+	}
+}
+
+func TestIntegrationFullMigrationCycle_CanReRunRolledBackMigration(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	m, err := migrate.New(db, &migrate.Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	if err != nil {
+		t.Fatalf("Failed to create migrator: %v", err)
+	}
+
+	userMigrations := []migrate.MigrationInterface{
+		&testMigration{
+			id:          "2026_03_21_0001_create_users",
+			description: "Create users table",
+			upFunc: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec(`CREATE TABLE users (
+					id INTEGER PRIMARY KEY,
+					email TEXT NOT NULL UNIQUE,
+					created_at DATETIME NOT NULL
+				)`)
+				return err
+			},
+			downFunc: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec("DROP TABLE users")
+				return err
+			},
+		},
+		&testMigration{
+			id:          "2026_03_21_0002_create_posts",
+			description: "Create posts table",
+			upFunc: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec(`CREATE TABLE posts (
+					id INTEGER PRIMARY KEY,
+					title TEXT NOT NULL,
+					user_id INTEGER NOT NULL
+				)`)
+				return err
+			},
+			downFunc: func(ctx context.Context, tx *sql.Tx) error {
+				_, err := tx.Exec("DROP TABLE posts")
+				return err
+			},
+		},
+	}
+
+	if err := m.AddMigrations(userMigrations); err != nil {
+		t.Fatalf("Failed to add user migrations: %v", err)
+	}
+
+	if err := m.Up(context.Background()); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	if err := m.Down(context.Background()); err != nil {
+		t.Fatalf("Failed to rollback: %v", err)
+	}
+
+	err = m.Up(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to re-run migration: %v", err)
+	}
+
+	status, err := m.GetStatus(context.Background())
+	if err != nil {
+		t.Fatalf("Failed to get status: %v", err)
+	}
+
+	appliedCount := 0
+	for _, s := range status {
+		if s.Applied {
+			appliedCount++
+		}
+	}
+
+	if appliedCount != 3 {
+		t.Errorf("Expected 3 migrations after re-run, got %d", appliedCount)
+	}
 }
 
 func TestIntegrationMigrationOrdering(t *testing.T) {
