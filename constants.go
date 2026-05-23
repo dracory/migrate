@@ -10,7 +10,7 @@ type NamingFormat string
 const (
 	// DefaultTableName is the default name for the migrations tracking table
 	// Can be overridden by setting the MIGRATE_TABLE_NAME environment variable
-	DefaultTableName = "schema_migrations"
+	DefaultTableName = "migration_tracker"
 
 	ColumnID          = "id"
 	ColumnBatch       = "batch"
@@ -21,7 +21,7 @@ const (
 	DirectionUp   = "up"
 	DirectionDown = "down"
 
-	BuiltinMigrationID = "2022_01_01_0000_create_schema_migrations"
+	BuiltinMigrationID = "2001_01_01_0000_table_migration_tracker_create"
 
 	// NamingFormatPrefixYYYY_MM_DD_HHMM uses timestamp-based format
 	NamingFormatPrefixYYYY_MM_DD_HHMM NamingFormat = "YYYY_MM_DD_HHMM"
@@ -42,7 +42,7 @@ func GetDefaultTableName() string {
 // GetBuiltinMigrationID returns the builtin migration ID based on naming format
 func GetBuiltinMigrationID(format NamingFormat) string {
 	if format == NamingFormatPrefixYYYY_MM_DD_NNN {
-		return "2022_01_01_000_create_schema_migrations"
+		return "2001_01_01_000_table_migration_tracker_create"
 	}
 	return BuiltinMigrationID
 }

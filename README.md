@@ -140,7 +140,7 @@ func main() {
 The migration tracking table is automatically created with the following schema:
 
 ```sql
-CREATE TABLE schema_migrations (
+CREATE TABLE migration_tracker (
     id TEXT PRIMARY KEY,                    -- The immutable identifier for the change
     batch INTEGER NOT NULL,                 -- Timestamp ID (YYYYMMDDHHMMSS). Groups the run
     description TEXT NOT NULL,              -- What this specific change did
@@ -156,7 +156,10 @@ The package includes a builtin migration that automatically creates the tracking
 - Runs automatically when you call `Up()` or `Down()` for the first time
 - Respects your custom table name configuration
 - Uses the new schema with performance tracking columns
-- Is always the first migration to run (ID: `2022_01_01_0000_create_schema_migrations`)
+- Is always the first migration to run
+- The migration ID varies based on your `NamingFormatPrefix` setting:
+  - Default (HHMM format): `2001_01_01_0000_table_migration_tracker_create`
+  - NNN format: `2001_01_01_000_table_migration_tracker_create`
 
 ## Migration ID Format
 
@@ -346,7 +349,7 @@ type MigrationInterface interface {
 Migrations are sorted lexicographically by their ID before execution:
 
 ```
-2022_01_01_0000_create_schema_migrations  # Builtin (always first)
+2001_01_01_0000_table_migration_tracker_create  # Builtin (always first)
 2026_03_21_0900_create_users_table        # User migration
 2026_03_21_0930_add_users_email_index     # User migration
 2026_03_22_1400_create_posts_table        # User migration
@@ -356,7 +359,7 @@ Migrations are sorted lexicographically by their ID before execution:
 
 If a migration fails:
 - The transaction is automatically rolled back
-- The migration is NOT recorded in `schema_migrations`
+- The migration is NOT recorded in `migration_tracker`
 - The error is returned to the caller
 - Subsequent migrations are NOT executed
 

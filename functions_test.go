@@ -10,7 +10,7 @@ import (
 func TestValidateMigrationIDWithFormat_AcceptsValidHHMMFormatIDs(t *testing.T) {
 	validIDs := []string{
 		"2026_03_21_1200_create_users_table",
-		"2022_01_01_0000_create_schema_migrations",
+		migrate.BuiltinMigrationID,
 		"2026_12_31_2359_add_holiday_table",
 		"2026_06_15_0830_update_user_profiles",
 	}
@@ -103,7 +103,7 @@ func TestValidateMigrationIDWithFormat_AcceptsValidCalendarDatesIncludingLeapYea
 func TestValidateMigrationIDWithFormat_AcceptsValidNNNFormatIDs(t *testing.T) {
 	validIDs := []string{
 		"2026_03_21_001_create_users_table",
-		"2022_01_01_000_create_schema_migrations",
+		migrate.GetBuiltinMigrationID(migrate.NamingFormatPrefixYYYY_MM_DD_NNN),
 		"2026_12_31_999_add_holiday_table",
 		"2026_06_15_123_update_user_profiles",
 	}
@@ -151,7 +151,7 @@ func TestValidateMigrationIDWithFormat_ValidatesSequenceRangeForNNNFormat(t *tes
 func TestValidateMigrationIDWithFormat_NNNFormatRejectsHHMMFormatIDs(t *testing.T) {
 	hhmmIDs := []string{
 		"2026_03_21_1200_create_users_table",
-		"2022_01_01_0000_create_schema_migrations",
+		migrate.BuiltinMigrationID,
 	}
 	for _, id := range hhmmIDs {
 		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_NNN); err == nil {
@@ -163,7 +163,7 @@ func TestValidateMigrationIDWithFormat_NNNFormatRejectsHHMMFormatIDs(t *testing.
 func TestValidateMigrationIDWithFormat_HHMMFormatRejectsNNNFormatIDs(t *testing.T) {
 	nnnIDs := []string{
 		"2026_03_21_001_create_users_table",
-		"2022_01_01_000_create_schema_migrations",
+		migrate.GetBuiltinMigrationID(migrate.NamingFormatPrefixYYYY_MM_DD_NNN),
 	}
 	for _, id := range nnnIDs {
 		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_HHMM); err == nil {
@@ -181,7 +181,7 @@ func TestValidateMigrationIDWithFormat_InvalidFormatReturnsError(t *testing.T) {
 
 func TestValidateTableName_AcceptsValidTableNames(t *testing.T) {
 	validNames := []string{
-		"schema_migrations",
+		"migration_tracker",
 		"migrations",
 		"custom_table",
 		"a",

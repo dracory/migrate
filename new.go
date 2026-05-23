@@ -9,7 +9,7 @@ import (
 // Options configures the Migrator behavior
 type Options struct {
 	// MigrationTableName is the name of the table used to track applied migrations.
-	// Defaults to "schema_migrations" if not specified.
+	// Defaults to "migration_tracker" if not specified.
 	MigrationTableName string
 
 	// Logger is used for migration logging.

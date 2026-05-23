@@ -10,16 +10,16 @@ import (
 )
 
 func TestNewCreateSchemaMigrationsTable_HasCorrectID(t *testing.T) {
-	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations", migrate.NamingFormatPrefixYYYY_MM_DD_HHMM)
+	migration := migrate.NewCreateSchemaMigrationsTable("migration_tracker", migrate.NamingFormatPrefixYYYY_MM_DD_HHMM)
 
-	expected := "2022_01_01_0000_create_schema_migrations"
+	expected := migrate.BuiltinMigrationID
 	if actual := migration.ID(); actual != expected {
 		t.Errorf("Expected ID %s, got %s", expected, actual)
 	}
 }
 
 func TestNewCreateSchemaMigrationsTable_HasDescription(t *testing.T) {
-	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations", migrate.NamingFormatPrefixYYYY_MM_DD_HHMM)
+	migration := migrate.NewCreateSchemaMigrationsTable("migration_tracker", migrate.NamingFormatPrefixYYYY_MM_DD_HHMM)
 
 	desc := migration.Description()
 	if desc == "" {
@@ -31,7 +31,7 @@ func TestNewCreateSchemaMigrationsTable_UpCreatesSchemaMigrationsTable(t *testin
 	db := setupTestDB(t)
 	defer db.Close()
 
-	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations", migrate.NamingFormatPrefixYYYY_MM_DD_HHMM)
+	migration := migrate.NewCreateSchemaMigrationsTable("migration_tracker", migrate.NamingFormatPrefixYYYY_MM_DD_HHMM)
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -49,12 +49,12 @@ func TestNewCreateSchemaMigrationsTable_UpCreatesSchemaMigrationsTable(t *testin
 	}
 
 	var tableName string
-	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", "schema_migrations").Scan(&tableName)
+	err = db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", "migration_tracker").Scan(&tableName)
 	if err != nil {
 		t.Fatalf("Table should exist after Up migration: %v", err)
 	}
-	if tableName != "schema_migrations" {
-		t.Errorf("Expected table name schema_migrations, got %s", tableName)
+	if tableName != "migration_tracker" {
+		t.Errorf("Expected table name migration_tracker, got %s", tableName)
 	}
 }
 
@@ -63,7 +63,7 @@ func TestNewCreateSchemaMigrationsTable_DownDropsSchemaMigrationsTable(t *testin
 	defer db.Close()
 
 	// First create the table
-	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations", migrate.NamingFormatPrefixYYYY_MM_DD_HHMM)
+	migration := migrate.NewCreateSchemaMigrationsTable("migration_tracker", migrate.NamingFormatPrefixYYYY_MM_DD_HHMM)
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -96,7 +96,7 @@ func TestNewCreateSchemaMigrationsTable_DownDropsSchemaMigrationsTable(t *testin
 	}
 
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", "schema_migrations").Scan(&count)
+	err = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?", "migration_tracker").Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to query sqlite_master: %v", err)
 	}
@@ -106,36 +106,36 @@ func TestNewCreateSchemaMigrationsTable_DownDropsSchemaMigrationsTable(t *testin
 }
 
 func TestGetBuiltinMigrations(t *testing.T) {
-	migrations := migrate.GetBuiltinMigrations("schema_migrations", migrate.NamingFormatPrefixYYYY_MM_DD_HHMM)
+	migrations := migrate.GetBuiltinMigrations("migration_tracker", migrate.NamingFormatPrefixYYYY_MM_DD_HHMM)
 
 	if len(migrations) == 0 {
 		t.Error("Expected at least one builtin migration")
 	}
 
 	firstMigration := migrations[0]
-	if firstMigration.ID() != "2022_01_01_0000_create_schema_migrations" {
-		t.Errorf("Expected first migration to be create_schema_migrations, got %s", firstMigration.ID())
+	if firstMigration.ID() != migrate.BuiltinMigrationID {
+		t.Errorf("Expected first migration to be table_migration_tracker_create, got %s", firstMigration.ID())
 	}
 }
 
 func TestNewCreateSchemaMigrationsTable_NNN(t *testing.T) {
-	migration := migrate.NewCreateSchemaMigrationsTable("schema_migrations", migrate.NamingFormatPrefixYYYY_MM_DD_NNN)
+	migration := migrate.NewCreateSchemaMigrationsTable("migration_tracker", migrate.NamingFormatPrefixYYYY_MM_DD_NNN)
 
-	expected := "2022_01_01_000_create_schema_migrations"
+	expected := migrate.GetBuiltinMigrationID(migrate.NamingFormatPrefixYYYY_MM_DD_NNN)
 	if actual := migration.ID(); actual != expected {
 		t.Errorf("Expected ID %s, got %s", expected, actual)
 	}
 }
 
 func TestGetBuiltinMigrations_NNN(t *testing.T) {
-	migrations := migrate.GetBuiltinMigrations("schema_migrations", migrate.NamingFormatPrefixYYYY_MM_DD_NNN)
+	migrations := migrate.GetBuiltinMigrations("migration_tracker", migrate.NamingFormatPrefixYYYY_MM_DD_NNN)
 
 	if len(migrations) == 0 {
 		t.Error("Expected at least one builtin migration")
 	}
 
 	firstMigration := migrations[0]
-	if firstMigration.ID() != "2022_01_01_000_create_schema_migrations" {
-		t.Errorf("Expected first migration to be create_schema_migrations with NNN format, got %s", firstMigration.ID())
+	if firstMigration.ID() != migrate.GetBuiltinMigrationID(migrate.NamingFormatPrefixYYYY_MM_DD_NNN) {
+		t.Errorf("Expected first migration to be table_migration_tracker_create with NNN format, got %s", firstMigration.ID())
 	}
 }

@@ -237,7 +237,7 @@ func (m *migratorImplementation) Up(ctx context.Context) error {
 		return err
 	}
 
-	// Get applied migrations (may be empty if schema_migrations doesn't exist yet)
+	// Get applied migrations (may be empty if migration_tracker doesn't exist yet)
 	applied, err := m.getAppliedmigrations(ctx)
 	if err != nil {
 		// If table doesn't exist, assume no migrations applied
