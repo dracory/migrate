@@ -16,9 +16,10 @@ type Options struct {
 	// If nil, logging is disabled.
 	Logger *slog.Logger
 
-	// NamingFormat specifies the format for migration IDs.
-	// Defaults to NamingFormatHHMM if not specified.
-	NamingFormat NamingFormat
+	// NamingFormatPrefix specifies the prefix format for migration IDs.
+	// Use NamingFormatPrefixNone ("none") to disable prefix validation.
+	// Empty string ("") defaults to NamingFormatPrefixYYYY_MM_DD_HHMM.
+	NamingFormatPrefix NamingFormat
 }
 
 // New creates a new migrator instance
@@ -39,9 +40,9 @@ func New(db *sql.DB, opts *Options) (MigratorInterface, error) {
 	logger := opts.Logger
 	// If nil, logging is disabled (keep logger as nil)
 
-	namingFormat := opts.NamingFormat
+	namingFormat := opts.NamingFormatPrefix
 	if namingFormat == "" {
-		namingFormat = NamingFormatHHMM
+		namingFormat = NamingFormatPrefixYYYY_MM_DD_HHMM
 	}
 
 	return &migratorImplementation{

@@ -23,10 +23,12 @@ const (
 
 	BuiltinMigrationID = "2022_01_01_0000_create_schema_migrations"
 
-	// NamingFormatHHMM uses YYYY_MM_DD_HHMM_description format
-	NamingFormatHHMM NamingFormat = "hhmm"
-	// NamingFormatNNN uses YYYY_MM_DD_NNN_description format
-	NamingFormatNNN NamingFormat = "nnn"
+	// NamingFormatPrefixYYYY_MM_DD_HHMM uses timestamp-based format
+	NamingFormatPrefixYYYY_MM_DD_HHMM NamingFormat = "YYYY_MM_DD_HHMM"
+	// NamingFormatPrefixYYYY_MM_DD_NNN uses sequence-based format
+	NamingFormatPrefixYYYY_MM_DD_NNN NamingFormat = "YYYY_MM_DD_NNN"
+	// NamingFormatPrefixNone uses no prefix format restriction
+	NamingFormatPrefixNone NamingFormat = "none"
 )
 
 // GetDefaultTableName returns the default table name, checking for environment variable override
@@ -39,7 +41,7 @@ func GetDefaultTableName() string {
 
 // GetBuiltinMigrationID returns the builtin migration ID based on naming format
 func GetBuiltinMigrationID(format NamingFormat) string {
-	if format == NamingFormatNNN {
+	if format == NamingFormatPrefixYYYY_MM_DD_NNN {
 		return "2022_01_01_000_create_schema_migrations"
 	}
 	return BuiltinMigrationID

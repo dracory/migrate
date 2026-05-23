@@ -160,7 +160,7 @@ The package includes a builtin migration that automatically creates the tracking
 
 ## Migration ID Format
 
-Migration IDs follow the format `YYYY_MM_DD_HHMM_description`:
+Migration IDs can use different prefix formats. The default format is `YYYY_MM_DD_HHMM_description`:
 
 ```
 YYYY - Year
@@ -175,7 +175,28 @@ Examples:
 - `2026_03_21_0930_add_users_email_index`
 - `2026_03_22_1400_create_posts_table`
 
-**Important**: Never change a migration ID after it has been applied to any environment.
+### Alternative Format: Sequence-based
+
+You can also use a sequence-based format `YYYY_MM_DD_NNN_description`:
+
+```
+YYYY - Year
+MM   - Month
+DD   - Day
+NNN  - Sequence number (000-999)
+description - Brief description using underscores
+```
+
+Examples:
+- `2026_03_21_001_create_users_table`
+- `2026_03_21_002_add_users_email_index`
+- `2026_03_22_001_create_posts_table`
+
+### No Prefix Validation
+
+To disable prefix format validation entirely, use `NamingFormatPrefixNone`. This allows any migration ID format as long as it's not empty and within the 255 character limit.
+
+**Important**: Never change a migration ID after it has been applied to any environment. Migration IDs are used to track which migrations have been run. Changing an ID can cause the migration to be re-run (causing errors or data corruption) or skipped entirely, leading to inconsistent states across environments.
 
 ## Configuration Options
 
@@ -212,6 +233,32 @@ migrator, err := migrate.New(db, &migrate.Options{
 if err != nil {
     log.Fatal(err)
 }
+```
+
+### Naming Format Prefix
+
+Configure the migration ID prefix format validation:
+
+```go
+// Use sequence-based format (YYYY_MM_DD_NNN_description)
+migrator, err := migrate.New(db, &migrate.Options{
+    NamingFormatPrefix: migrate.NamingFormatPrefixYYYY_MM_DD_NNN,
+})
+
+// Disable prefix validation (allows any ID format)
+migrator, err := migrate.New(db, &migrate.Options{
+    NamingFormatPrefix: migrate.NamingFormatPrefixNone,
+})
+
+// Default: timestamp-based format (YYYY_MM_DD_HHMM_description)
+migrator, err := migrate.New(db, &migrate.Options{
+    NamingFormatPrefix: migrate.NamingFormatPrefixYYYY_MM_DD_HHMM,
+})
+
+// Empty string defaults to timestamp-based format
+migrator, err := migrate.New(db, &migrate.Options{
+    NamingFormatPrefix: "",  // Same as NamingFormatPrefixYYYY_MM_DD_HHMM
+})
 ```
 
 ### Default Options

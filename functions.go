@@ -134,9 +134,19 @@ func validateDescription(parts []string) error {
 // Supported formats:
 //   - YYYY_MM_DD_HHMM_description (for HHMM format)
 //   - YYYY_MM_DD_NNN_description (for NNN format)
+//   - none (no prefix format restriction)
 func ValidateMigrationID(id string, format NamingFormat) error {
 	if len(id) > 255 {
 		return fmt.Errorf("migration ID too long (max 255 characters)")
+	}
+
+	if len(id) == 0 {
+		return fmt.Errorf("migration ID cannot be empty")
+	}
+
+	// For "none" format, only validate length and non-empty
+	if format == NamingFormatPrefixNone {
+		return nil
 	}
 
 	parts := strings.Split(id, "_")
@@ -150,11 +160,11 @@ func ValidateMigrationID(id string, format NamingFormat) error {
 		return err
 	}
 
-	if format == NamingFormatHHMM {
+	if format == NamingFormatPrefixYYYY_MM_DD_HHMM {
 		if err := validateTimePart(parts[3]); err != nil {
 			return err
 		}
-	} else if format == NamingFormatNNN {
+	} else if format == NamingFormatPrefixYYYY_MM_DD_NNN {
 		if err := validateSequencePart(parts[3]); err != nil {
 			return err
 		}

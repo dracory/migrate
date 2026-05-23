@@ -16,7 +16,7 @@ func TestValidateMigrationIDWithFormat_AcceptsValidHHMMFormatIDs(t *testing.T) {
 	}
 
 	for _, id := range validIDs {
-		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatHHMM); err != nil {
+		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_HHMM); err != nil {
 			t.Errorf("Expected valid ID %s to be accepted, got error: %v", id, err)
 		}
 	}
@@ -36,7 +36,7 @@ func TestValidateMigrationIDWithFormat_RejectsInvalidHHMMFormatIDs(t *testing.T)
 	}
 
 	for _, id := range invalidIDs {
-		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatHHMM); err == nil {
+		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_HHMM); err == nil {
 			t.Errorf("Expected invalid ID %s to be rejected", id)
 		}
 	}
@@ -45,7 +45,7 @@ func TestValidateMigrationIDWithFormat_RejectsInvalidHHMMFormatIDs(t *testing.T)
 func TestValidateMigrationIDWithFormat_ValidatesMonthRangeForHHMMFormat(t *testing.T) {
 	invalidMonths := []string{"2026_00_01_1200_test", "2026_13_01_1200_test", "2026_99_01_1200_test"}
 	for _, id := range invalidMonths {
-		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatHHMM); err == nil {
+		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_HHMM); err == nil {
 			t.Errorf("Expected invalid month in ID %s to be rejected", id)
 		}
 	}
@@ -54,7 +54,7 @@ func TestValidateMigrationIDWithFormat_ValidatesMonthRangeForHHMMFormat(t *testi
 func TestValidateMigrationIDWithFormat_ValidatesDayRangeForHHMMFormat(t *testing.T) {
 	invalidDays := []string{"2026_03_00_1200_test", "2026_03_32_1200_test", "2026_03_99_1200_test"}
 	for _, id := range invalidDays {
-		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatHHMM); err == nil {
+		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_HHMM); err == nil {
 			t.Errorf("Expected invalid day in ID %s to be rejected", id)
 		}
 	}
@@ -67,7 +67,7 @@ func TestValidateMigrationIDWithFormat_ValidatesTimeRangeForHHMMFormat(t *testin
 		"2026_03_21_9999_test",
 	}
 	for _, id := range invalidTimes {
-		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatHHMM); err == nil {
+		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_HHMM); err == nil {
 			t.Errorf("Expected invalid time in ID %s to be rejected", id)
 		}
 	}
@@ -82,7 +82,7 @@ func TestValidateMigrationIDWithFormat_RejectsInvalidCalendarDatesForHHMMFormat(
 		"2026_11_31_1200_test",
 	}
 	for _, id := range invalidDates {
-		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatHHMM); err == nil {
+		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_HHMM); err == nil {
 			t.Errorf("Expected invalid calendar date %s to be rejected", id)
 		}
 	}
@@ -94,7 +94,7 @@ func TestValidateMigrationIDWithFormat_AcceptsValidCalendarDatesIncludingLeapYea
 		"2026_02_28_1200_test",
 	}
 	for _, id := range validDates {
-		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatHHMM); err != nil {
+		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_HHMM); err != nil {
 			t.Errorf("Expected valid calendar date %s to be accepted, got error: %v", id, err)
 		}
 	}
@@ -109,7 +109,7 @@ func TestValidateMigrationIDWithFormat_AcceptsValidNNNFormatIDs(t *testing.T) {
 	}
 
 	for _, id := range validIDs {
-		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatNNN); err != nil {
+		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_NNN); err != nil {
 			t.Errorf("Expected valid NNN format ID %s to be accepted, got error: %v", id, err)
 		}
 	}
@@ -130,7 +130,7 @@ func TestValidateMigrationIDWithFormat_RejectsInvalidNNNFormatIDs(t *testing.T) 
 	}
 
 	for _, id := range invalidIDs {
-		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatNNN); err == nil {
+		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_NNN); err == nil {
 			t.Errorf("Expected invalid NNN format ID %s to be rejected", id)
 		}
 	}
@@ -142,7 +142,7 @@ func TestValidateMigrationIDWithFormat_ValidatesSequenceRangeForNNNFormat(t *tes
 		"2026_03_21_9999_test",
 	}
 	for _, id := range invalidSequences {
-		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatNNN); err == nil {
+		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_NNN); err == nil {
 			t.Errorf("Expected invalid sequence in NNN format ID %s to be rejected", id)
 		}
 	}
@@ -154,7 +154,7 @@ func TestValidateMigrationIDWithFormat_NNNFormatRejectsHHMMFormatIDs(t *testing.
 		"2022_01_01_0000_create_schema_migrations",
 	}
 	for _, id := range hhmmIDs {
-		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatNNN); err == nil {
+		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_NNN); err == nil {
 			t.Errorf("Expected HHMM format ID %s to be rejected in NNN mode", id)
 		}
 	}
@@ -166,7 +166,7 @@ func TestValidateMigrationIDWithFormat_HHMMFormatRejectsNNNFormatIDs(t *testing.
 		"2022_01_01_000_create_schema_migrations",
 	}
 	for _, id := range nnnIDs {
-		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatHHMM); err == nil {
+		if err := migrate.ValidateMigrationID(id, migrate.NamingFormatPrefixYYYY_MM_DD_HHMM); err == nil {
 			t.Errorf("Expected NNN format ID %s to be rejected in HHMM mode", id)
 		}
 	}

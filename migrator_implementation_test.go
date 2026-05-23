@@ -324,7 +324,7 @@ func TestAddMigration_AddsValidMigrationWithNNNFormat(t *testing.T) {
 	defer db.Close()
 
 	opts := &migrate.Options{
-		NamingFormat: migrate.NamingFormatNNN,
+		NamingFormatPrefix: migrate.NamingFormatPrefixYYYY_MM_DD_NNN,
 	}
 	m, err := migrate.New(db, opts)
 	if err != nil {
@@ -369,7 +369,7 @@ func TestAddMigration_RejectsHHMMFormatIDWhenUsingNNNFormat(t *testing.T) {
 	defer db.Close()
 
 	opts := &migrate.Options{
-		NamingFormat: migrate.NamingFormatNNN,
+		NamingFormatPrefix: migrate.NamingFormatPrefixYYYY_MM_DD_NNN,
 	}
 	m, err := migrate.New(db, opts)
 	if err != nil {
